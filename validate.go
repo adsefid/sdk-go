@@ -1,0 +1,88 @@
+package adsefid
+
+import (
+	"regexp"
+)
+
+// localIDPattern matches a valid local_id: 1-36 ASCII letters/digits, with
+// '-', '_', '.', ':' allowed only strictly between the first and last
+// character.
+var localIDPattern = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9\-_.:]{0,34}[A-Za-z0-9])?$`)
+
+const (
+	maxSmsMessageLength       = 900
+	maxMessengerMessageLength = 4000
+	maxCombinedIDsLookup      = 2000
+	maxReceivedCount          = 499
+	maxTemplatesTake          = 100
+)
+
+func validateLocalID(localID *string, field string) *ValidationError {
+	if localID == nil || *localID == "" {
+		return nil
+	}
+	if !localIDPattern.MatchString(*localID) {
+		return &ValidationError{
+			Field:   field,
+			Message: "must be 1-36 ASCII letters/digits, with '-', '_', '.', ':' allowed only between the first and last character",
+		}
+	}
+	return nil
+}
+
+func requireNonEmpty(value, field string) *ValidationError {
+	if value == "" {
+		return &ValidationError{Field: field, Message: "is required"}
+	}
+	return nil
+}
+
+func requireRequest[T any](value *T) *ValidationError {
+	if value == nil {
+		return &ValidationError{Field: "request", Message: "is required"}
+	}
+	return nil
+}
+
+func requireMaxLength(value string, maxLength int, field string) *ValidationError {
+	if len([]rune(value)) > maxLength {
+		return &ValidationError{Field: field, Message: "exceeds the maximum allowed length"}
+	}
+	return nil
+}
+
+func requireNonEmptySlice[T any](values []T, field string) *ValidationError {
+	if len(values) == 0 {
+		return &ValidationError{Field: field, Message: "must contain at least one item"}
+	}
+	return nil
+}
+
+func requireInRange(value, minValue, maxValue int, field string) *ValidationError {
+	if value < minValue || value > maxValue {
+		return &ValidationError{Field: field, Message: "is out of the allowed range"}
+	}
+	return nil
+}
+
+func requireAtLeastOne(firstProvided, secondProvided bool, message string) *ValidationError {
+	if !firstProvided && !secondProvided {
+		return &ValidationError{Message: message}
+	}
+	return nil
+}
+
+func requireCombinedCountAtMost(count1, count2, maxAllowed int, message string) *ValidationError {
+	if count1+count2 > maxAllowed {
+		return &ValidationError{Message: message}
+	}
+	return nil
+}
+
+func distinctCount(values []string) int {
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		seen[value] = struct{}{}
+	}
+	return len(seen)
+}

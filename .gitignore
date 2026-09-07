@@ -1,0 +1,8 @@
+*.test
+*.out
+coverage.txt
+coverage.html
+.cache/
+.idea/
+.vscode/
+.DS_Store
