@@ -1,0 +1,8 @@
+{
+  "note": "The endpoint secret is shown in the adsefid.com panel as Base64 of 32 random bytes; the HMAC key is those raw bytes, NOT the UTF-8 bytes of the Base64 string. Sign over the exact bytes of body_file — never a re-serialized copy.",
+  "secret": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+  "timestamp": "1770000000",
+  "body_file": "webhooks/receive.body.json",
+  "signature": "v1=FsrANLUw2xTDKbFb/+21HIbcj3/HQVOBKExOJyse6lQ=",
+  "tampered_signature": "v1=F8rANLUw2xTDKbFb/+21HIbcj3/HQVOBKExOJyse6lQ="
+}

@@ -33,3 +33,4 @@ jobs:
           version: v2.13.2
 
       - run: make build
+      - run: go test -race ./...

@@ -1,0 +1,8 @@
+{
+  "status": "error",
+  "error": {
+    "code": 2018,
+    "name": "UNAUTHORIZED",
+    "details": null
+  }
+}

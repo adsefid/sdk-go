@@ -1,0 +1,15 @@
+{
+  "status": "error",
+  "error": {
+    "code": 2024,
+    "name": "INVALID_PARAMETER",
+    "details": {
+      "take": [
+        "must be between 1 and 100"
+      ],
+      "state": [
+        "must be one of pendingapproval, approved, rejected"
+      ]
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "status": "success",
+  "data": {
+    "group_id": "0195ff95-79bf-7b1a-bfa1-a696a9f5e40a",
+    "messages": [
+      {
+        "message_id": "0195ff95-7a2b-79ac-b993-ac37b6dd63b0",
+        "receptor": "98912****567",
+        "status": 1000,
+        "local_id": "p2p-1",
+        "message": "سلام علی",
+        "hide": false,
+        "segment_count": 1,
+        "cost": 120
+      },
+      {
+        "message_id": null,
+        "receptor": "98993****111",
+        "status": 2014,
+        "local_id": "p2p-2",
+        "message": "سلام رضا",
+        "hide": false,
+        "segment_count": 0,
+        "cost": 0
+      }
+    ],
+    "send_time": "2026-04-04T11:10:00+03:30",
+    "line_number": "3000xxxx",
+    "line_selector": 0,
+    "total_cost": 120,
+    "counts": {
+      "1000": 1,
+      "2014": 1
+    }
+  }
+}

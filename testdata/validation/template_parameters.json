@@ -1,0 +1,11 @@
+{
+  "note": "Sent for a template declaring {code:string} and {amount:number} and {invoice:number}. A number-typed parameter may travel as a JSON string, which the server substitutes verbatim — that is how leading zeros and trailing decimal zeros survive.",
+  "parameters": {
+    "code": "459122",
+    "invoice": "001234",
+    "amount": 1.5,
+    "exact_amount": "1.50",
+    "quantity": 2
+  },
+  "expected_json": "{\"amount\":1.5,\"code\":\"459122\",\"exact_amount\":\"1.50\",\"invoice\":\"001234\",\"quantity\":2}"
+}

@@ -1,0 +1,13 @@
+{
+  "status": "success",
+  "data": {
+    "cancelled_messages": [
+      {
+        "message_id": "0195ff8c-55aa-7e74-a337-c2fd4f6e85c5",
+        "local_id": "order-10001",
+        "status": 1004
+      }
+    ],
+    "failed_to_cancel": []
+  }
+}

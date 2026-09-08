@@ -1,0 +1,11 @@
+{
+  "status": "success",
+  "data": {
+    "name": "علی رضایی",
+    "company_name": "شرکت نمونه",
+    "credit_left": 1250000,
+    "email": "john@example.com",
+    "phone": "98912****567",
+    "account_status": "active"
+  }
+}

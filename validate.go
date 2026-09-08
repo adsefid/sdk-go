@@ -44,11 +44,27 @@ func requireRequest[T any](value *T) *ValidationError {
 	return nil
 }
 
+// requireMaxLength counts UTF-16 code units, not runes or bytes, because that
+// is what the server counts. A character outside the Basic Multilingual Plane
+// (an emoji, say) is one rune but two UTF-16 code units, so counting runes here
+// would accept a message the server rejects.
 func requireMaxLength(value string, maxLength int, field string) *ValidationError {
-	if len([]rune(value)) > maxLength {
+	if utf16Length(value) > maxLength {
 		return &ValidationError{Field: field, Message: "exceeds the maximum allowed length"}
 	}
 	return nil
+}
+
+func utf16Length(value string) int {
+	length := 0
+	for _, r := range value {
+		if r > 0xFFFF {
+			length += 2
+		} else {
+			length++
+		}
+	}
+	return length
 }
 
 func requireNonEmptySlice[T any](values []T, field string) *ValidationError {
