@@ -41,7 +41,7 @@ func main() {
 	}
 
 	fmt.Printf(
-		"sent message %s to %s: status=%s, cost=%d, segments=%d\n",
+		"sent message %s to %s: status=%s, cost=%g, segments=%d\n",
 		resp.MessageID, resp.Receptor, resp.Status, resp.Cost, resp.SegmentCount,
 	)
 }

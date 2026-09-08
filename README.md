@@ -82,6 +82,7 @@ client, err := adsefid.NewClient(
 	apiKey,
 	adsefid.WithBaseURL("https://api.adsefid.com"), // default; override for testing
 	adsefid.WithTimeout(15 * time.Second),          // only used when WithHTTPClient is not set
+	adsefid.WithUserAgent("my-service/1.0.0"),      // defaults to adsefid-go/<SDK_VERSION>
 )
 ```
 
@@ -91,6 +92,9 @@ client, err := adsefid.NewClient(
   both are set.
 - **`WithTimeout(time.Duration)`** — sets the timeout of the default `*http.Client` this package
   builds internally. Has no effect if `WithHTTPClient` is also supplied.
+- **`WithUserAgent(string)`** — replaces the default `adsefid-go/<SDK_VERSION>` User-Agent value.
+
+Monetary response fields (`Cost`, `TotalCost`, and `CreditLeft`) use `float64` and may contain fractional values.
 
 ## Resource reference
 
@@ -334,7 +338,7 @@ There are no tests in this repository, by explicit product decision.
 
 This SDK follows Semantic Versioning independently of the API documentation.
 
-- SDK version: **`0.1.0`** (repository tag `v0.1.0`)
+- SDK version: **`0.2.0`** (repository tag `v0.2.0`)
 - Verified API documentation: **`v1.11.0`**
 
 SDK releases use `v<SDK_VERSION>` tags. The two version numbers move independently. A future major

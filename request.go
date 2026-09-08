@@ -96,6 +96,7 @@ func doRequest[T any](ctx context.Context, c *Client, method, path, contentType 
 		return zero, &TransportError{Message: "failed to build the HTTP request", Err: err}
 	}
 	req.Header.Set("X-API-KEY", c.apiKey)
+	req.Header.Set("User-Agent", c.userAgent)
 	req.Header.Set("Accept", "application/json")
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
