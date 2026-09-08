@@ -1,0 +1,21 @@
+{
+  "status": "success",
+  "data": {
+    "group_id": "0195ffb8-ef3d-71d8-ba37-a5f6bd8fc603",
+    "message_id": "0195ffb8-f03f-74d0-a97d-e90ae2f2b2d0",
+    "status": 1000,
+    "local_id": "mt-1",
+    "template_id": "invoice_notice",
+    "send_time": "2026-04-04T12:50:00+03:30",
+    "expiry_date": "2026-04-04T13:00:00+03:30",
+    "cost": 80,
+    "receptor": "98912****567",
+    "message": "فاکتور INV-1043 به مبلغ 250000 آماده است",
+    "profile": "b72ea7f4-44b4-4f5e-91ef-91816ae5f88a",
+    "messenger": "rubika",
+    "parameters": {
+      "invoice_id": "INV-1043",
+      "amount": "250000"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "0195ffd0-7e08-7d4d-8eef-dd4f7ca5e6fd",
+  "type": "receive",
+  "occurred_at": "2026-04-04T12:00:00+03:30",
+  "attempt": 1,
+  "version": "1",
+  "data": [
+    {
+      "id": 1543201,
+      "line_number": "3000xxxx",
+      "sender": "98912****567",
+      "message": "سلام",
+      "receive_date": "2026-04-04T11:59:58+03:30"
+    }
+  ]
+}

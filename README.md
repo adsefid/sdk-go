@@ -131,7 +131,7 @@ This SDK never panics for expected failures. It defines four error types, all im
   message too long, a malformed `local_id`, etc.). No network call was made.
 - **`*adsefid.APIError`** — the API returned a non-success envelope, or a non-2xx HTTP status.
   Carries `Code adsefid.WebServiceResponseCode`, `Name string`, `HTTPStatusCode int`, and
-  `Details json.RawMessage` (endpoint-specific, decode defensively).
+  `Details json.RawMessage` (endpoint-specific, decode defensively — see below).
 - **`*adsefid.RateLimitError`** — embeds `*adsefid.APIError` for the rate-limit-shaped failures
   (`WebServiceResponseCode` 2035 `MessageLimitReached`, 2036 `RequestLimitReached`, or a bare HTTP
   429). It unwraps to the embedded `*APIError`, so `errors.As` also matches that.
@@ -167,6 +167,18 @@ if err != nil {
 	log.Fatalf("unexpected error: %v", err)
 }
 ```
+
+`details` is not one shape — the service picks one per endpoint:
+
+| When | Shape | Example |
+|---|---|---|
+| Request validation (`2024 INVALID_PARAMETER`) | `{"errors": {field: message}}` — snake_case field paths, **string** values | `{"errors":{"take":"invalid value for take"}}` |
+| Single send | `{field: message}` — flat, no wrapper | `{"receptor":"invalid value for receptor"}` |
+| Bulk / P2P | `{"errors": {...}, "messages": [{"index": n, "errors": {...}}]}` — `index` is the position in *your* array, so gaps are normal | `{"errors":{},"messages":[{"index":2,"errors":{"local_id":"invalid value for local_id"}}]}` |
+| Cancel | `{field: [value, ...]}` — the one shape whose values are **arrays** | `{"local_ids":["order-10001"]}` |
+| Anything else | absent or `null` | |
+
+Decode it defensively for the endpoint you called rather than assuming a single shape.
 
 ### Rate limits
 
@@ -205,13 +217,45 @@ either a JSON string or a JSON number:
 ```go
 params := map[string]adsefid.TemplateParameterValue{
 	"name":  adsefid.StringParam("Ali"),
-	"count": adsefid.NumberParam(3),
+	"count": adsefid.IntParam(3),
+	"price": adsefid.NumberParam(19.99),
 }
 
 if s, ok := params["name"].StringValue(); ok {
 	fmt.Println(s)
 }
 ```
+
+### Numbers, leading zeros and decimals
+
+A parameter the template declares as `number` may be sent **either** as a JSON number or as a JSON
+string. The service substitutes a numeric string verbatim, so a string is the only way to keep a
+value's exact digits:
+
+```go
+params := map[string]adsefid.TemplateParameterValue{
+	"invoice": adsefid.StringParam("001234"), // renders as 001234, not 1234
+	"amount":  adsefid.StringParam("1.50"),   // renders as 1.50, not 1.5
+	"count":   adsefid.IntParam(2),           // an ordinary integer
+	"rate":    adsefid.NumberParam(19.99),    // a decimal, where float rounding is acceptable
+}
+```
+
+Use `StringParam` whenever the rendered text must match the digits you supplied — invoice numbers,
+account numbers, zero-padded codes, and money amounts with a fixed number of decimal places.
+`NumberParam` takes a `float64` and therefore cannot represent every decimal exactly.
+
+On the way back, `RawNumber()` returns a number as its exact wire text, while `NumberValue()`
+converts to `float64`:
+
+```go
+value := resp.Parameters["amount"]
+if raw, ok := value.RawNumber(); ok {
+	fmt.Println(raw) // "1.50" — the trailing zero survives
+}
+```
+
+See [`examples/templates`](examples/templates) for a runnable version.
 
 ## File upload example
 
@@ -252,6 +296,16 @@ remain exact:
 
 `webhooks.Verify` needs only the raw body plus the Signature and Timestamp headers — the event id,
 type, and attempt are also present in (and covered by the signature of) the JSON body itself.
+
+### The signing secret is Base64
+
+Your endpoint's signing secret is shown in the adsefid.com panel as the Base64 encoding of 32
+random bytes, and the service signs with **those raw bytes** — not with the text of the Base64
+string. `webhooks.Verify` takes the secret exactly as the panel shows it and decodes it for you; a
+secret that is not valid Base64 is rejected with a `*adsefid.WebhookVerificationError`.
+
+If you already hold the decoded key, use `webhooks.VerifyWithKey(rawBody, signature, timestamp,
+key, opts...)` instead and skip the decoding step.
 
 You configure, per webhook endpoint, which event types it receives (in your adsefid.com panel) —
 an endpoint subscribed only to `webhooks.EventTypeReceive` will never see a `*StatusEvent` arrive,
@@ -324,21 +378,44 @@ make deps    # go mod download
 make fmt     # gofmt + goimports
 make lint    # go vet + golangci-lint
 make build   # go build ./...
+make test    # go test ./...
 ```
 
-`gofmt` and `go vet` ship with the Go toolchain. `golangci-lint` needs a one-time install:
+`gofmt`, `go vet` and `go test` ship with the Go toolchain. `golangci-lint` needs a one-time
+install:
 
 ```sh
 brew install golangci-lint
 ```
 
-There are no tests in this repository, by explicit product decision.
+The test suite uses only the standard library (`testing` plus `net/http/httptest`), so `go.mod`
+stays dependency-free. Golden fixtures live in `testdata/` and are byte-identical to the same tree
+in the sibling SDK repositories; `TestFixturesIntegrity` verifies them against `CHECKSUMS.txt`.
+
+### Examples
+
+Each directory under `examples/` is a standalone `package main`. Run one with `go run`:
+
+```sh
+export ADSEFID_API_KEY=...
+export ADSEFID_LINE_NUMBER=3000xxxx
+
+go run ./examples/account          # account info, lines, profiles, templates; client configuration
+go run ./examples/quickstart       # send one SMS, with full error triage
+go run ./examples/bulkandp2p       # bulk + P2P sends, and reading a partial success
+go run ./examples/templates        # list templates and send one, incl. exact numeric values
+go run ./examples/statusandcancel  # delivery status, cancelling, inbound messages
+go run ./examples/messenger        # upload an attachment and send it via a messenger profile
+go run ./examples/webhookserver    # verify and dispatch inbound webhooks
+```
+
+`examples/account` sends nothing, so it is the safest one to try first.
 
 ## Versioning
 
 This SDK follows Semantic Versioning independently of the API documentation.
 
-- SDK version: **`0.2.0`** (repository tag `v0.2.0`)
+- SDK version: **`0.3.0`** (repository tag `v0.3.0`)
 - Verified API documentation: **`v1.11.0`**
 
 SDK releases use `v<SDK_VERSION>` tags. The two version numbers move independently. A future major
@@ -346,4 +423,4 @@ version `v2` must also change the module path to `github.com/adsefid/sdk-go/v2`.
 
 ## License
 
-Proprietary — All rights reserved.
+MIT — see [LICENSE](LICENSE).

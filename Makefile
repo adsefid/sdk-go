@@ -1,4 +1,4 @@
-.PHONY: deps fmt lint build
+.PHONY: deps fmt lint build test
 deps:
 	go mod download
 fmt:
@@ -9,3 +9,5 @@ lint:
 	@if command -v golangci-lint >/dev/null 2>&1; then golangci-lint run ./...; else echo "golangci-lint not installed — see README"; fi
 build:
 	go build ./...
+test:
+	go test ./...

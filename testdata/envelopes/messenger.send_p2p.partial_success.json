@@ -1,0 +1,35 @@
+{
+  "status": "success",
+  "data": {
+    "group_id": "0195ffb2-aa5e-7d42-953a-18f34d2f71e1",
+    "receptors": [
+      {
+        "message_id": "0195ffb2-ab31-73f5-b8d7-afe7b7d2f1fd",
+        "receptor": "98912****567",
+        "message": "سلام علی",
+        "local_id": "mp2p-1",
+        "hide": false,
+        "status": 1000,
+        "cost": 80
+      },
+      {
+        "message_id": null,
+        "receptor": "98993****111",
+        "message": "سلام رضا",
+        "local_id": "mp2p-2",
+        "hide": false,
+        "status": 2014,
+        "cost": 0
+      }
+    ],
+    "send_time": "2026-04-04T12:30:00+03:30",
+    "total_count": 2,
+    "total_cost": 80,
+    "counts": {
+      "1000": 1,
+      "2014": 1
+    },
+    "profile": "b72ea7f4-44b4-4f5e-91ef-91816ae5f88a",
+    "messenger": "bale"
+  }
+}

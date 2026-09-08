@@ -1,0 +1,13 @@
+{
+  "status": "error",
+  "error": {
+    "code": 2029,
+    "name": "INVALID_LOCAL_IDS",
+    "details": {
+      "local_ids": [
+        "order-10001",
+        "order-10002"
+      ]
+    }
+  }
+}

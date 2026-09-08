@@ -1,0 +1,15 @@
+{
+  "id": "0195ffd2-76d4-7d10-9d40-c0d2fc61f774",
+  "type": "messenger.status",
+  "occurred_at": "2026-04-04T12:05:00+03:30",
+  "attempt": 1,
+  "version": "1",
+  "data": [
+    {
+      "id": "0195ff8c-55aa-7e74-a337-c2fd4f6e85c5",
+      "local_id": "order-10001",
+      "status_delivery": 1002,
+      "delivery_time": "2026-04-04T12:04:54+03:30"
+    }
+  ]
+}

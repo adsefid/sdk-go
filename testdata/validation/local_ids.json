@@ -1,0 +1,15 @@
+[
+  { "value": "a", "valid": true, "why": "single alphanumeric" },
+  { "value": "A1", "valid": true, "why": "two alphanumerics" },
+  { "value": "a-b_c.d:e", "valid": true, "why": "all four separators, all interior" },
+  { "value": "order-10001", "valid": true, "why": "the shape the docs use" },
+  { "value": "012345678901234567890123456789012345", "valid": true, "why": "36 chars, the maximum" },
+  { "value": "", "valid": true, "why": "empty is normalized to not-supplied by the service" },
+  { "value": "   ", "valid": true, "why": "whitespace-only is normalized to not-supplied too" },
+  { "value": "0123456789012345678901234567890123456", "valid": false, "why": "37 chars, one over" },
+  { "value": "-abc", "valid": false, "why": "leading separator" },
+  { "value": "abc-", "valid": false, "why": "trailing separator" },
+  { "value": "a b", "valid": false, "why": "space" },
+  { "value": "a/b", "valid": false, "why": "disallowed separator" },
+  { "value": "سلام", "valid": false, "why": "non-ASCII" }
+]

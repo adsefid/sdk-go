@@ -1,0 +1,22 @@
+{
+  "status": "success",
+  "data": {
+    "group_id": "0195ff9f-f8db-747a-8c31-4d6a954f4a8d",
+    "message_id": "0195ff9f-f9cf-7d62-a49e-2ca4db9a90f2",
+    "status": 1000,
+    "local_id": "otp-90001",
+    "line_number": "3000xxxx",
+    "template_id": "otp_login",
+    "send_time": "2026-04-04T11:40:00+03:30",
+    "expiry_date": "2026-04-04T12:00:00+03:30",
+    "line_selector": 2,
+    "cost": 120,
+    "receptor": "98912****567",
+    "message": "کد ورود شما: ۴۵۹۱۲۲ - اعتبار: ۲ دقیقه",
+    "segment_count": 1,
+    "parameters": {
+      "code": "459122",
+      "minutes": 2
+    }
+  }
+}

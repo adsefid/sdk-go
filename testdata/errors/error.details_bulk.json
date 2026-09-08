@@ -1,0 +1,27 @@
+{
+  "status": "error",
+  "error": {
+    "code": 2024,
+    "name": "INVALID_PARAMETER",
+    "details": {
+      "errors": {
+        "line_number": "invalid value for line_number"
+      },
+      "messages": [
+        {
+          "index": 0,
+          "errors": {
+            "receptor": "invalid value for receptor"
+          }
+        },
+        {
+          "index": 2,
+          "errors": {
+            "local_id": "invalid value for local_id",
+            "message": "invalid value for message"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "status": "error",
+  "error": {
+    "code": 2014,
+    "name": "INVALID_RECEPTOR",
+    "details": {
+      "receptor": "invalid value for receptor"
+    }
+  }
+}

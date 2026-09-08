@@ -3,6 +3,7 @@ package adsefid
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 )
 
 // LineSelector selects which line-accounting mode a send should use. See the
@@ -313,9 +314,15 @@ func (v TemplateParameterType) String() string {
 // received back on the response. The API accepts either a JSON string or a
 // JSON number for a template parameter, so this type marshals and unmarshals
 // as whichever of the two it currently holds.
+//
+// For a parameter the template declares as "number", pass a string whenever
+// the exact lexical form matters — StringParam("001234") keeps the leading
+// zeros, and StringParam("1.50") keeps the trailing zero. The server accepts a
+// numeric string for a number parameter and substitutes it verbatim. Numbers
+// themselves may be decimal.
 type TemplateParameterValue struct {
 	stringValue string
-	numberValue float64
+	numberValue json.Number
 	isNumber    bool
 }
 
@@ -324,9 +331,22 @@ func StringParam(value string) TemplateParameterValue {
 	return TemplateParameterValue{stringValue: value}
 }
 
-// NumberParam builds a TemplateParameterValue holding a number.
+// NumberParam builds a TemplateParameterValue holding a floating-point number.
+// Note that a float64 cannot represent every decimal exactly; use StringParam
+// when the exact decimal form matters.
 func NumberParam(value float64) TemplateParameterValue {
-	return TemplateParameterValue{numberValue: value, isNumber: true}
+	return TemplateParameterValue{
+		numberValue: json.Number(strconv.FormatFloat(value, 'f', -1, 64)),
+		isNumber:    true,
+	}
+}
+
+// IntParam builds a TemplateParameterValue holding an integer.
+func IntParam(value int64) TemplateParameterValue {
+	return TemplateParameterValue{
+		numberValue: json.Number(strconv.FormatInt(value, 10)),
+		isNumber:    true,
+	}
 }
 
 // IsNumber reports whether this value holds a number (as opposed to a string).
@@ -343,11 +363,26 @@ func (v TemplateParameterValue) StringValue() (string, bool) {
 	return v.stringValue, true
 }
 
-// NumberValue returns the held number and true, or 0 and false if this value
-// holds a string instead.
+// NumberValue returns the held number as a float64 and true, or 0 and false if
+// this value holds a string instead. Use RawNumber to read the number without
+// going through binary floating point.
 func (v TemplateParameterValue) NumberValue() (float64, bool) {
 	if !v.isNumber {
 		return 0, false
+	}
+	parsed, err := v.numberValue.Float64()
+	if err != nil {
+		return 0, false
+	}
+	return parsed, true
+}
+
+// RawNumber returns the held number as its exact decimal text and true, or ""
+// and false if this value holds a string instead. This is the lossless view: a
+// number read off the wire round-trips through it unchanged.
+func (v TemplateParameterValue) RawNumber() (json.Number, bool) {
+	if !v.isNumber {
+		return "", false
 	}
 	return v.numberValue, true
 }
@@ -355,21 +390,29 @@ func (v TemplateParameterValue) NumberValue() (float64, bool) {
 // MarshalJSON implements json.Marshaler.
 func (v TemplateParameterValue) MarshalJSON() ([]byte, error) {
 	if v.isNumber {
-		return json.Marshal(v.numberValue)
+		return []byte(v.numberValue), nil
 	}
 	return json.Marshal(v.stringValue)
 }
 
 // UnmarshalJSON implements json.Unmarshaler. It accepts a JSON string or a
-// JSON number and rejects anything else.
+// JSON number and rejects anything else. A number is retained as its exact
+// wire text rather than being converted to float64.
 func (v *TemplateParameterValue) UnmarshalJSON(data []byte) error {
+	// Deliberately not the conventional no-op on null: a null parameter value
+	// is not something the API accepts, and silently decoding it to an empty
+	// string would send a wrong value rather than surface the problem.
+	if string(data) == "null" {
+		return fmt.Errorf("adsefid: a template parameter value must be a JSON string or number, got null")
+	}
+
 	var asString string
 	if err := json.Unmarshal(data, &asString); err == nil {
 		*v = TemplateParameterValue{stringValue: asString}
 		return nil
 	}
 
-	var asNumber float64
+	var asNumber json.Number
 	if err := json.Unmarshal(data, &asNumber); err == nil {
 		*v = TemplateParameterValue{numberValue: asNumber, isNumber: true}
 		return nil

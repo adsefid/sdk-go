@@ -1,0 +1,25 @@
+{
+  "status": "success",
+  "data": {
+    "group_id": "0195ffac-cb9d-79e0-8ab6-f451afafdf2d",
+    "receptors": [
+      {
+        "message_id": "0195ffac-cc70-72d7-88a6-9f2347305b1b",
+        "receptor": "98912****567",
+        "local_id": "mb-1",
+        "hide": false,
+        "status": 1000,
+        "cost": 80
+      }
+    ],
+    "message": "ارسال گروهی پیام رسان",
+    "send_time": "2026-04-04T12:10:00+03:30",
+    "total_count": 1,
+    "total_cost": 80,
+    "counts": {
+      "1000": 1
+    },
+    "profile": "b72ea7f4-44b4-4f5e-91ef-91816ae5f88a",
+    "messenger": "rubika"
+  }
+}

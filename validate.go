@@ -2,6 +2,7 @@ package adsefid
 
 import (
 	"regexp"
+	"strings"
 )
 
 // localIDPattern matches a valid local_id: 1-36 ASCII letters/digits, with
@@ -13,12 +14,16 @@ const (
 	maxSmsMessageLength       = 900
 	maxMessengerMessageLength = 4000
 	maxCombinedIDsLookup      = 2000
+	minReceivedCount          = 1
 	maxReceivedCount          = 499
 	maxTemplatesTake          = 100
 )
 
+// validateLocalID mirrors the service, which normalizes a blank local_id to
+// "not supplied" before validating it. A nil, empty or whitespace-only value is
+// therefore accepted and simply omitted from the request.
 func validateLocalID(localID *string, field string) *ValidationError {
-	if localID == nil || *localID == "" {
+	if localID == nil || strings.TrimSpace(*localID) == "" {
 		return nil
 	}
 	if !localIDPattern.MatchString(*localID) {
@@ -44,11 +49,27 @@ func requireRequest[T any](value *T) *ValidationError {
 	return nil
 }
 
+// requireMaxLength counts UTF-16 code units, not runes or bytes, because that
+// is what the server counts. A character outside the Basic Multilingual Plane
+// (an emoji, say) is one rune but two UTF-16 code units, so counting runes here
+// would accept a message the server rejects.
 func requireMaxLength(value string, maxLength int, field string) *ValidationError {
-	if len([]rune(value)) > maxLength {
+	if utf16Length(value) > maxLength {
 		return &ValidationError{Field: field, Message: "exceeds the maximum allowed length"}
 	}
 	return nil
+}
+
+func utf16Length(value string) int {
+	length := 0
+	for _, r := range value {
+		if r > 0xFFFF {
+			length += 2
+		} else {
+			length++
+		}
+	}
+	return length
 }
 
 func requireNonEmptySlice[T any](values []T, field string) *ValidationError {

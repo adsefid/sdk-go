@@ -50,13 +50,27 @@ over an ambiguous doc reading:
 - `request.go` — single-attempt HTTP transport, envelope decoding, error mapping. No retry logic anywhere, by design.
 - `validate.go` — client-side pre-flight checks (local_id format, length/count limits) that fail fast before any network call.
 - `errors.go` — the full error type hierarchy.
-- `enums.go` — every documented enum as typed Go constants, plus `TemplateParameterValue`.
+- `enums.go` — every documented enum as typed Go constants, plus `TemplateParameterValue`. That
+  type stores a number as a `json.Number` so exact wire text survives a round trip; a `number`
+  template parameter may legitimately travel as a JSON *string*, which is how leading zeros
+  (`"001234"`) and exact decimals (`"1.50"`) reach the service intact. Do not "simplify" it back to
+  a `float64`.
 - `sms.go` / `messenger.go` / `user.go` — one `*Service` type per resource area.
-- `webhooks/` — signature verification and typed webhook event payloads; imports the root package but is never imported by it. `headers.go` holds the `Header*` constants and `events.go` the `EventType*` constants — use instead of typing header/type strings.
+- `webhooks/` — signature verification and typed webhook event payloads. The endpoint secret is
+  the Base64 encoding of 32 random bytes and the service signs with the **decoded bytes**, so
+  `Verify` Base64-decodes before keying the HMAC; `VerifyWithKey` takes raw key bytes. Keying the
+  HMAC with the UTF-8 bytes of the Base64 string does not verify against the live service.
+  This package imports the root package but is never imported by it. `headers.go` holds the `Header*` constants and `events.go` the `EventType*` constants — use instead of typing header/type strings.
 
 ## Hard rules
 
-- No tests in this repository, by explicit product decision — do not add any.
+- Every change ships with tests. Suites live beside the code they cover, in `package adsefid`
+  (and `package webhooks`), stdlib `testing` only — no testify, no anything: `go.mod` stays
+  dependency-free. Prefer one table-driven test over many near-identical functions. A new endpoint
+  needs rows in the request-building, response-parsing and validation tables at minimum.
+- `testdata/` holds golden fixtures that are **byte-identical** to the same tree in the sibling SDK
+  repositories, so all five agree on the wire. Never edit a fixture in isolation: change it in all
+  five and regenerate every `CHECKSUMS.txt`, or `TestFixturesIntegrity` fails.
 - No retry logic anywhere in this SDK — every request is a single attempt.
 - No third-party dependencies — stdlib only. Think hard before adding one; the answer is almost always no.
 - No magic literals — every documented enum value is a named Go constant, never a bare int/string at a call site.
@@ -65,7 +79,7 @@ over an ambiguous doc reading:
 
 ## Development
 
-Run `make lint`/`make fmt`/`make build` before finishing any change. Prerequisites:
+Run `make lint`/`make fmt`/`make build`/`make test` before finishing any change. Prerequisites:
 `gofmt`/`go vet` ship with the Go toolchain; `golangci-lint` needs a one-time
 `brew install golangci-lint` (see README's Development section).
 

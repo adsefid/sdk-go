@@ -336,14 +336,14 @@ func (s *SMSService) Cancel(ctx context.Context, req *CancelSmsRequest) (*Cancel
 }
 
 // GetReceived fetches inbound SMS messages received on lineNumber. count (if
-// given) must be in [0, 499]; since (if given) filters to messages received
+// given) must be in [1, 499]; since (if given) filters to messages received
 // at or after that time.
 func (s *SMSService) GetReceived(ctx context.Context, lineNumber string, count *int, since *time.Time) (*GetReceivedSmsResponse, error) {
 	if err := requireNonEmpty(lineNumber, "lineNumber"); err != nil {
 		return nil, err
 	}
 	if count != nil {
-		if err := requireInRange(*count, 0, maxReceivedCount, "count"); err != nil {
+		if err := requireInRange(*count, minReceivedCount, maxReceivedCount, "count"); err != nil {
 			return nil, err
 		}
 	}

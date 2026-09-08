@@ -1,0 +1,13 @@
+{
+  "status": "error",
+  "error": {
+    "code": 2024,
+    "name": "INVALID_PARAMETER",
+    "details": {
+      "errors": {
+        "take": "invalid value for take",
+        "state": "invalid value for state"
+      }
+    }
+  }
+}

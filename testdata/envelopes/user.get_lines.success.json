@@ -1,0 +1,17 @@
+{
+  "status": "success",
+  "data": [
+    {
+      "line_number": "3000xxxx",
+      "line_selector": 0,
+      "line_name": "Main Promotional",
+      "enabled": true
+    },
+    {
+      "line_number": "5000xxxx",
+      "line_selector": 2,
+      "line_name": "Service Bulk",
+      "enabled": false
+    }
+  ]
+}

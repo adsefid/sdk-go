@@ -49,17 +49,35 @@ type rawEnvelope struct {
 // a body that has been re-serialized, pretty-printed, or otherwise mutated
 // will fail). signatureHeader and timestampHeader are the values of the
 // X-Atlas-Webhook-Signature and X-Atlas-Webhook-Timestamp request headers,
-// respectively. secret is the webhook endpoint's signing secret.
+// respectively.
+//
+// secret is the webhook endpoint's signing secret exactly as shown in your
+// adsefid.com panel: the Base64 encoding of 32 random bytes. Verify decodes it
+// to those raw bytes and uses them as the HMAC key, which is what the server
+// signs with. A secret that is not valid Base64 is rejected. If you hold the
+// key as raw bytes already, use VerifyWithKey instead.
 //
 // The signature is HMAC-SHA256 over the literal string "{timestamp}.{rawBody}",
-// keyed with secret, with the raw digest bytes Base64-encoded directly (no
-// intermediate hex-encoding step) and prefixed with "v1=". Verify strips that
-// prefix and compares using a constant-time comparison.
+// with the raw digest bytes Base64-encoded directly (no intermediate
+// hex-encoding step) and prefixed with "v1=". Verify strips that prefix and
+// compares using a constant-time comparison.
 //
-// It returns a *adsefid.WebhookVerificationError if the signature is invalid,
-// the timestamp is missing, malformed, or too old (5 minutes by default; see
-// WithMaxAge), or the body cannot be parsed as a recognized event.
+// It returns a *adsefid.WebhookVerificationError if the secret is not valid
+// Base64, the signature is invalid, the timestamp is missing, malformed, or too
+// old (5 minutes by default; see WithMaxAge), or the body cannot be parsed as a
+// recognized event.
 func Verify(rawBody []byte, signatureHeader, timestampHeader, secret string, opts ...VerifyOption) (WebhookEvent, error) {
+	key, err := base64.StdEncoding.DecodeString(strings.TrimSpace(secret))
+	if err != nil {
+		return nil, &adsefid.WebhookVerificationError{Message: "webhook secret is not valid Base64; use the secret exactly as shown in your adsefid.com panel"}
+	}
+	return VerifyWithKey(rawBody, signatureHeader, timestampHeader, key, opts...)
+}
+
+// VerifyWithKey is Verify with the signing key supplied as raw bytes rather
+// than as the Base64 string from the adsefid.com panel. Use it when you store
+// the decoded key yourself, for example in a secret manager.
+func VerifyWithKey(rawBody []byte, signatureHeader, timestampHeader string, key []byte, opts ...VerifyOption) (WebhookEvent, error) {
 	cfg := &verifyConfig{maxAge: defaultMaxAge}
 	for _, opt := range opts {
 		opt(cfg)
@@ -75,7 +93,7 @@ func Verify(rawBody []byte, signatureHeader, timestampHeader, secret string, opt
 		return nil, &adsefid.WebhookVerificationError{Message: "timestamp header is not a valid unix timestamp"}
 	}
 
-	if !signatureValid(timestampSeconds, rawBody, secret, providedSignature) {
+	if !signatureValid(timestampSeconds, rawBody, key, providedSignature) {
 		return nil, &adsefid.WebhookVerificationError{Message: "signature mismatch"}
 	}
 
@@ -128,10 +146,10 @@ func Verify(rawBody []byte, signatureHeader, timestampHeader, secret string, opt
 }
 
 // signatureValid recomputes the expected HMAC-SHA256 signature for
-// (timestampSeconds, rawBody) under secret, and compares it against
+// (timestampSeconds, rawBody) under key, and compares it against
 // providedSignature in constant time.
-func signatureValid(timestampSeconds int64, rawBody []byte, secret, providedSignature string) bool {
-	mac := hmac.New(sha256.New, []byte(secret))
+func signatureValid(timestampSeconds int64, rawBody []byte, key []byte, providedSignature string) bool {
+	mac := hmac.New(sha256.New, key)
 	mac.Write([]byte(strconv.FormatInt(timestampSeconds, 10)))
 	mac.Write([]byte("."))
 	mac.Write(rawBody)

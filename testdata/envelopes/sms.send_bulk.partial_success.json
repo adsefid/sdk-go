@@ -1,0 +1,35 @@
+{
+  "status": "success",
+  "data": {
+    "group_id": "0195ff8f-cf67-7c51-8a2a-9d2ea64eb150",
+    "receptors": [
+      {
+        "message_id": "0195ff8f-d045-7598-86db-a4f9dff5328f",
+        "receptor": "98912****567",
+        "local_id": "b-1",
+        "status": 1000,
+        "hide": false,
+        "cost": 120
+      },
+      {
+        "message_id": null,
+        "receptor": "98993****111",
+        "local_id": "b-2",
+        "status": 2025,
+        "hide": true,
+        "cost": 0
+      }
+    ],
+    "message": "اطلاع رسانی سرویس",
+    "segment_count": 1,
+    "send_time": "2026-04-04T11:00:00+03:30",
+    "line_number": "3000xxxx",
+    "line_selector": 2,
+    "counts": {
+      "1000": 1,
+      "2025": 1
+    },
+    "total_count": 2,
+    "total_cost": 120
+  }
+}
