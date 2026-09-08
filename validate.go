@@ -2,6 +2,7 @@ package adsefid
 
 import (
 	"regexp"
+	"strings"
 )
 
 // localIDPattern matches a valid local_id: 1-36 ASCII letters/digits, with
@@ -13,12 +14,16 @@ const (
 	maxSmsMessageLength       = 900
 	maxMessengerMessageLength = 4000
 	maxCombinedIDsLookup      = 2000
+	minReceivedCount          = 1
 	maxReceivedCount          = 499
 	maxTemplatesTake          = 100
 )
 
+// validateLocalID mirrors the service, which normalizes a blank local_id to
+// "not supplied" before validating it. A nil, empty or whitespace-only value is
+// therefore accepted and simply omitted from the request.
 func validateLocalID(localID *string, field string) *ValidationError {
-	if localID == nil || *localID == "" {
+	if localID == nil || strings.TrimSpace(*localID) == "" {
 		return nil
 	}
 	if !localIDPattern.MatchString(*localID) {

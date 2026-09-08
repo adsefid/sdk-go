@@ -38,7 +38,7 @@ func TestMessengerRequestBuilding(t *testing.T) {
 		},
 		{
 			name:    "send bulk",
-			fixture: "envelopes/messenger.send_bulk.partial_success.json",
+			fixture: "envelopes/messenger.send_bulk.success.json",
 			call: func(c *Client) error {
 				_, err := c.Messenger.SendBulk(context.Background(), &SendBulkMessengerRequest{
 					Receptors: []BulkMessengerReceptor{{Receptor: "a"}}, Message: "m", Profile: "p",
@@ -50,7 +50,7 @@ func TestMessengerRequestBuilding(t *testing.T) {
 		},
 		{
 			name:    "send p2p",
-			fixture: "envelopes/messenger.send_p2p.partial_success.json",
+			fixture: "envelopes/messenger.send_p2p.success.json",
 			call: func(c *Client) error {
 				_, err := c.Messenger.SendP2P(context.Background(), &SendP2PMessengerRequest{
 					Receptors: []P2PMessengerReceptor{{Receptor: "a", Message: "m"}}, Profile: "p",
@@ -241,4 +241,46 @@ func TestMessengerValidationRejectsBeforeSending(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestMessengerPartialSuccessIsNotAnError mirrors the SMS case: a messenger
+// bulk or P2P send answers HTTP 200 even when individual receptors failed.
+func TestMessengerPartialSuccessIsNotAnError(t *testing.T) {
+	t.Run("bulk", func(t *testing.T) {
+		client, _ := newFixtureClient(t, "envelopes/messenger.send_bulk.partial_success.json")
+		got, err := client.Messenger.SendBulk(context.Background(), &SendBulkMessengerRequest{
+			Receptors: []BulkMessengerReceptor{{Receptor: "a"}, {Receptor: "b"}},
+			Message:   "m",
+			Profile:   "p",
+		})
+		if err != nil {
+			t.Fatalf("a partial success must not be an error, got %v", err)
+		}
+		if len(got.Receptors) != 2 {
+			t.Fatalf("expected 2 receptor results, got %d", len(got.Receptors))
+		}
+		if got.Receptors[0].Status != 1000 || got.Receptors[1].Status != 2025 {
+			t.Errorf("statuses = %d/%d, want 1000/2025", got.Receptors[0].Status, got.Receptors[1].Status)
+		}
+		if got.Receptors[1].MessageID != nil {
+			t.Error("a failed receptor should have a null message_id")
+		}
+		if got.Counts["2025"] != 1 {
+			t.Errorf("counts = %v", got.Counts)
+		}
+	})
+
+	t.Run("p2p", func(t *testing.T) {
+		client, _ := newFixtureClient(t, "envelopes/messenger.send_p2p.partial_success.json")
+		got, err := client.Messenger.SendP2P(context.Background(), &SendP2PMessengerRequest{
+			Receptors: []P2PMessengerReceptor{{Receptor: "a", Message: "m"}},
+			Profile:   "p",
+		})
+		if err != nil {
+			t.Fatalf("a partial success must not be an error, got %v", err)
+		}
+		if len(got.Receptors) != 2 || got.Receptors[1].Status != 2014 {
+			t.Errorf("unexpected receptors %+v", got.Receptors)
+		}
+	})
 }

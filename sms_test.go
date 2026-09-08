@@ -406,6 +406,16 @@ func TestSMSValidationRejectsBeforeSending(t *testing.T) {
 			_, err := c.SMS.GetReceived(context.Background(), "3000", ptr(maxReceivedCount+1), nil)
 			return err
 		}},
+		{"received count of zero", func(c *Client) error {
+			// The service requires 1..499, so 0 is rejected here rather than
+			// being sent and bounced back as an API error.
+			_, err := c.SMS.GetReceived(context.Background(), "3000", ptr(0), nil)
+			return err
+		}},
+		{"negative received count", func(c *Client) error {
+			_, err := c.SMS.GetReceived(context.Background(), "3000", ptr(-1), nil)
+			return err
+		}},
 		{"received with empty line number", func(c *Client) error {
 			_, err := c.SMS.GetReceived(context.Background(), "", nil, nil)
 			return err
@@ -459,5 +469,19 @@ func TestGetStatusCombinedIDLimit(t *testing.T) {
 	client3, _ := newFixtureClient(t, "envelopes/sms.get_status.success.json")
 	if _, err := client3.SMS.GetStatus(context.Background(), duplicates, nil); err != nil {
 		t.Errorf("duplicates collapse to one distinct id and should be accepted: %v", err)
+	}
+}
+
+// TestGetReceivedCountBoundaries pins the inclusive 1..499 range the service
+// enforces.
+func TestGetReceivedCountBoundaries(t *testing.T) {
+	for _, count := range []int{minReceivedCount, 250, maxReceivedCount} {
+		client, requests := newFixtureClient(t, "envelopes/sms.get_received.success.json")
+		if _, err := client.SMS.GetReceived(context.Background(), "3000xxxx", ptr(count), nil); err != nil {
+			t.Errorf("count=%d should be accepted: %v", count, err)
+		}
+		if len(*requests) != 1 {
+			t.Errorf("count=%d should have reached the network", count)
+		}
 	}
 }

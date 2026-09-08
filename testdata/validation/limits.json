@@ -1,0 +1,12 @@
+{
+  "note": "Bounds the service enforces, verified against its own validators. All five SDKs check these before making a request.",
+  "sms_message_max_length": 900,
+  "messenger_message_max_length": 4000,
+  "combined_status_ids_max": 2000,
+  "receive_count_min": 1,
+  "receive_count_max": 499,
+  "templates_take_min": 1,
+  "templates_take_max": 100,
+  "local_id_max_length": 36,
+  "length_counting": "UTF-16 code units, not code points — a non-BMP character costs two"
+}

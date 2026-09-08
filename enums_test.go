@@ -172,3 +172,34 @@ func TestTemplateParameterValueJSON(t *testing.T) {
 		}
 	})
 }
+
+// TestSharedTemplateExample is the cross-SDK guard: all five SDKs serialize this
+// parameter map to the same JSON, which is what keeps a template rendered
+// identically no matter which SDK sent it.
+func TestSharedTemplateExample(t *testing.T) {
+	var example struct {
+		Parameters   map[string]json.RawMessage `json:"parameters"`
+		ExpectedJSON string                     `json:"expected_json"`
+	}
+	if err := json.Unmarshal(mustFixture(t, "validation/template_parameters.json"), &example); err != nil {
+		t.Fatalf("decode template_parameters.json: %v", err)
+	}
+
+	params := make(map[string]TemplateParameterValue, len(example.Parameters))
+	for name, raw := range example.Parameters {
+		var value TemplateParameterValue
+		if err := value.UnmarshalJSON(raw); err != nil {
+			t.Fatalf("decode parameter %q: %v", name, err)
+		}
+		params[name] = value
+	}
+
+	// encoding/json sorts map keys, matching the fixture's canonical form.
+	got, err := json.Marshal(params)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if string(got) != example.ExpectedJSON {
+		t.Errorf("serialized as\n  %s\nwant\n  %s", got, example.ExpectedJSON)
+	}
+}
