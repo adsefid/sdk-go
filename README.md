@@ -131,7 +131,7 @@ This SDK never panics for expected failures. It defines four error types, all im
   message too long, a malformed `local_id`, etc.). No network call was made.
 - **`*adsefid.APIError`** — the API returned a non-success envelope, or a non-2xx HTTP status.
   Carries `Code adsefid.WebServiceResponseCode`, `Name string`, `HTTPStatusCode int`, and
-  `Details json.RawMessage` (endpoint-specific, decode defensively).
+  `Details json.RawMessage` (endpoint-specific, decode defensively — see below).
 - **`*adsefid.RateLimitError`** — embeds `*adsefid.APIError` for the rate-limit-shaped failures
   (`WebServiceResponseCode` 2035 `MessageLimitReached`, 2036 `RequestLimitReached`, or a bare HTTP
   429). It unwraps to the embedded `*APIError`, so `errors.As` also matches that.
@@ -167,6 +167,18 @@ if err != nil {
 	log.Fatalf("unexpected error: %v", err)
 }
 ```
+
+`details` is not one shape — the service picks one per endpoint:
+
+| When | Shape | Example |
+|---|---|---|
+| Request validation (`2024 INVALID_PARAMETER`) | `{"errors": {field: message}}` — snake_case field paths, **string** values | `{"errors":{"take":"invalid value for take"}}` |
+| Single send | `{field: message}` — flat, no wrapper | `{"receptor":"invalid value for receptor"}` |
+| Bulk / P2P | `{"errors": {...}, "messages": [{"index": n, "errors": {...}}]}` — `index` is the position in *your* array, so gaps are normal | `{"errors":{},"messages":[{"index":2,"errors":{"local_id":"invalid value for local_id"}}]}` |
+| Cancel | `{field: [value, ...]}` — the one shape whose values are **arrays** | `{"local_ids":["order-10001"]}` |
+| Anything else | absent or `null` | |
+
+Decode it defensively for the endpoint you called rather than assuming a single shape.
 
 ### Rate limits
 

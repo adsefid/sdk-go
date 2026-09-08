@@ -91,17 +91,8 @@ func TestErrorMapping(t *testing.T) {
 				t.Errorf("IsRateLimitError = %v, want %v", ok, tc.wantRateLimit)
 			}
 
-			if tc.wantDetails {
-				if len(apiErr.Details) == 0 {
-					t.Fatal("expected details to survive")
-				}
-				var details map[string]any
-				if err := json.Unmarshal(apiErr.Details, &details); err != nil {
-					t.Fatalf("details should stay valid JSON: %v", err)
-				}
-				if _, present := details["take"]; !present {
-					t.Errorf("details lost its keys: %v", details)
-				}
+			if tc.wantDetails && len(apiErr.Details) == 0 {
+				t.Error("expected details to survive")
 			}
 		})
 	}
@@ -205,4 +196,112 @@ func TestErrorHierarchy(t *testing.T) {
 	if errors.Unwrap(rateLimitErr) != apiErr {
 		t.Error("Unwrap should return the wrapped *APIError")
 	}
+}
+
+// TestErrorDetailsShapes: Details is deliberately left as raw JSON because the
+// service uses a different shape per endpoint. Decode each real shape to prove
+// none of them is lost or coerced on the way through.
+func TestErrorDetailsShapes(t *testing.T) {
+	t.Run("validation errors are a field to message map under \"errors\"", func(t *testing.T) {
+		client, _ := newTestClient(t, jsonHandler(
+			http.StatusBadRequest, mustFixture(t, "errors/error.invalid_parameter.json")))
+
+		_, err := client.User.GetTemplates(context.Background(), nil, nil, nil)
+
+		var apiErr *APIError
+		if !errors.As(err, &apiErr) {
+			t.Fatalf("expected an *APIError, got %#v", err)
+		}
+
+		var details struct {
+			Errors map[string]string `json:"errors"`
+		}
+		if err := json.Unmarshal(apiErr.Details, &details); err != nil {
+			t.Fatalf("decode details: %v", err)
+		}
+		// Values are plain strings, one per field — not arrays.
+		if got := details.Errors["take"]; got != "invalid value for take" {
+			t.Errorf("errors[take] = %q", got)
+		}
+		if got := details.Errors["state"]; got != "invalid value for state" {
+			t.Errorf("errors[state] = %q", got)
+		}
+	})
+
+	t.Run("single-send errors are a flat field to message map", func(t *testing.T) {
+		client, _ := newTestClient(t, jsonHandler(
+			http.StatusBadRequest, mustFixture(t, "errors/error.details_single.json")))
+
+		_, err := client.User.GetInfo(context.Background())
+
+		var apiErr *APIError
+		if !errors.As(err, &apiErr) {
+			t.Fatalf("expected an *APIError, got %#v", err)
+		}
+
+		var details map[string]string
+		if err := json.Unmarshal(apiErr.Details, &details); err != nil {
+			t.Fatalf("decode details: %v", err)
+		}
+		if got := details["receptor"]; got != "invalid value for receptor" {
+			t.Errorf("details[receptor] = %q", got)
+		}
+	})
+
+	t.Run("bulk errors carry per-item errors keyed by index", func(t *testing.T) {
+		client, _ := newTestClient(t, jsonHandler(
+			http.StatusBadRequest, mustFixture(t, "errors/error.details_bulk.json")))
+
+		_, err := client.User.GetInfo(context.Background())
+
+		var apiErr *APIError
+		if !errors.As(err, &apiErr) {
+			t.Fatalf("expected an *APIError, got %#v", err)
+		}
+
+		var details struct {
+			Errors   map[string]string `json:"errors"`
+			Messages []struct {
+				Index  int               `json:"index"`
+				Errors map[string]string `json:"errors"`
+			} `json:"messages"`
+		}
+		if err := json.Unmarshal(apiErr.Details, &details); err != nil {
+			t.Fatalf("decode details: %v", err)
+		}
+		if details.Errors["line_number"] == "" {
+			t.Error("request-level errors should survive")
+		}
+		if len(details.Messages) != 2 {
+			t.Fatalf("expected 2 per-item errors, got %d", len(details.Messages))
+		}
+		// The index says which item of YOUR array failed; it is not positional
+		// in this list, so a gap (0 then 2) is normal.
+		if details.Messages[1].Index != 2 {
+			t.Errorf("second item index = %d, want 2", details.Messages[1].Index)
+		}
+		if details.Messages[1].Errors["local_id"] == "" {
+			t.Error("per-item errors should survive")
+		}
+	})
+
+	t.Run("cancel errors are the one shape whose values are arrays", func(t *testing.T) {
+		client, _ := newTestClient(t, jsonHandler(
+			http.StatusBadRequest, mustFixture(t, "errors/error.details_cancel.json")))
+
+		_, err := client.SMS.Cancel(context.Background(), &CancelSmsRequest{LocalIDs: []string{"a"}})
+
+		var apiErr *APIError
+		if !errors.As(err, &apiErr) {
+			t.Fatalf("expected an *APIError, got %#v", err)
+		}
+
+		var details map[string][]string
+		if err := json.Unmarshal(apiErr.Details, &details); err != nil {
+			t.Fatalf("decode details: %v", err)
+		}
+		if len(details["local_ids"]) != 2 {
+			t.Errorf("details[local_ids] = %v, want 2 entries", details["local_ids"])
+		}
+	})
 }
