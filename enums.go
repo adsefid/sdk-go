@@ -7,7 +7,7 @@ import (
 )
 
 // LineSelector selects which line-accounting mode a send should use. See the
-// adsefid.com API documentation (doc v1.11.0, section 3.1).
+// adsefid.com API documentation (doc v1.12.0, section 3.1).
 type LineSelector int
 
 const (

@@ -9,7 +9,7 @@ Equivalent SDKs exist for the same API in sibling repositories (`sdk-dotnet`, `s
 
 The API surface (endpoints, field names, types, validation rules, enums, example payloads,
 webhook behavior) is defined by the published adsefid.com SMS Web Service API documentation. This
-SDK is verified against doc version v1.11.0. Re-read the relevant documentation before changing
+SDK is verified against doc version v1.12.0. Re-read the relevant documentation before changing
 any endpoint, request/response model, or enum. The SDK follows independent Semantic Versioning
 from repository tags; never copy the API-document version into a tag. Record both versions in the
 README. A future v2 must add `/v2` to the module and import paths.
