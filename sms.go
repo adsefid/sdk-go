@@ -31,7 +31,7 @@ type SendSingleSmsResponse struct {
 	Status       WebServiceMessageStatus `json:"status"`
 	LineNumber   string                  `json:"line_number"`
 	LineSelector LineSelector            `json:"line_selector"`
-	Cost         int64                   `json:"cost"`
+	Cost         float64                 `json:"cost"`
 	Receptor     string                  `json:"receptor"`
 	SendTime     *time.Time              `json:"send_time"`
 	MessageID    string                  `json:"message_id"`
@@ -67,7 +67,7 @@ type BulkSmsReceptorResult struct {
 	LocalID   *string `json:"local_id"`
 	Status    int     `json:"status"`
 	Hide      bool    `json:"hide"`
-	Cost      int64   `json:"cost"`
+	Cost      float64 `json:"cost"`
 }
 
 // SendBulkSmsResponse is the response body for SMSService.SendBulk.
@@ -81,7 +81,7 @@ type SendBulkSmsResponse struct {
 	LineSelector LineSelector            `json:"line_selector"`
 	Counts       map[string]int          `json:"counts"`
 	TotalCount   int                     `json:"total_count"`
-	TotalCost    int64                   `json:"total_cost"`
+	TotalCost    float64                 `json:"total_cost"`
 }
 
 // P2PSmsMessage is one entry of SendP2PSmsRequest.Messages.
@@ -111,7 +111,7 @@ type P2PSmsMessageResult struct {
 	Message      string  `json:"message"`
 	Hide         bool    `json:"hide"`
 	SegmentCount int     `json:"segment_count"`
-	Cost         int64   `json:"cost"`
+	Cost         float64 `json:"cost"`
 }
 
 // SendP2PSmsResponse is the response body for SMSService.SendP2P.
@@ -121,7 +121,7 @@ type SendP2PSmsResponse struct {
 	SendTime     *time.Time            `json:"send_time"`
 	LineNumber   string                `json:"line_number"`
 	LineSelector LineSelector          `json:"line_selector"`
-	TotalCost    int64                 `json:"total_cost"`
+	TotalCost    float64               `json:"total_cost"`
 	Counts       map[string]int        `json:"counts"`
 }
 
@@ -147,7 +147,7 @@ type SendTemplateSmsResponse struct {
 	SendTime     *time.Time                        `json:"send_time"`
 	ExpiryDate   *time.Time                        `json:"expiry_date"`
 	LineSelector LineSelector                      `json:"line_selector"`
-	Cost         int64                             `json:"cost"`
+	Cost         float64                           `json:"cost"`
 	Receptor     string                            `json:"receptor"`
 	Message      string                            `json:"message"`
 	SegmentCount int                               `json:"segment_count"`

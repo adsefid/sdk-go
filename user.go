@@ -18,7 +18,7 @@ type UserService struct {
 type UserInfo struct {
 	Name          string  `json:"name"`
 	CompanyName   *string `json:"company_name"`
-	CreditLeft    int64   `json:"credit_left"`
+	CreditLeft    float64 `json:"credit_left"`
 	Email         *string `json:"email"`
 	Phone         *string `json:"phone"`
 	AccountStatus string  `json:"account_status"`

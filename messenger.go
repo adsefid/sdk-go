@@ -31,7 +31,7 @@ type SendSingleMessengerResponse struct {
 	Receptor  string                  `json:"receptor"`
 	LocalID   *string                 `json:"local_id"`
 	Hide      bool                    `json:"hide"`
-	Cost      int64                   `json:"cost"`
+	Cost      float64                 `json:"cost"`
 	SendTime  *time.Time              `json:"send_time"`
 	Profile   string                  `json:"profile"`
 	Messenger string                  `json:"messenger"`
@@ -64,7 +64,7 @@ type BulkMessengerReceptorResult struct {
 	LocalID   *string `json:"local_id"`
 	Hide      bool    `json:"hide"`
 	Status    int     `json:"status"`
-	Cost      int64   `json:"cost"`
+	Cost      float64 `json:"cost"`
 }
 
 // SendBulkMessengerResponse is the response body for MessengerService.SendBulk.
@@ -74,7 +74,7 @@ type SendBulkMessengerResponse struct {
 	Message    string                        `json:"message"`
 	SendTime   *time.Time                    `json:"send_time"`
 	TotalCount int                           `json:"total_count"`
-	TotalCost  int64                         `json:"total_cost"`
+	TotalCost  float64                       `json:"total_cost"`
 	Counts     map[string]int                `json:"counts"`
 	Profile    string                        `json:"profile"`
 	Messenger  string                        `json:"messenger"`
@@ -106,7 +106,7 @@ type P2PMessengerReceptorResult struct {
 	LocalID   *string `json:"local_id"`
 	Hide      bool    `json:"hide"`
 	Status    int     `json:"status"`
-	Cost      int64   `json:"cost"`
+	Cost      float64 `json:"cost"`
 }
 
 // SendP2PMessengerResponse is the response body for MessengerService.SendP2P.
@@ -115,7 +115,7 @@ type SendP2PMessengerResponse struct {
 	Receptors  []P2PMessengerReceptorResult `json:"receptors"`
 	SendTime   *time.Time                   `json:"send_time"`
 	TotalCount int                          `json:"total_count"`
-	TotalCost  int64                        `json:"total_cost"`
+	TotalCost  float64                      `json:"total_cost"`
 	Counts     map[string]int               `json:"counts"`
 	Profile    string                       `json:"profile"`
 	Messenger  string                       `json:"messenger"`
@@ -140,7 +140,7 @@ type SendTemplateMessengerResponse struct {
 	TemplateID string                            `json:"template_id"`
 	SendTime   *time.Time                        `json:"send_time"`
 	ExpiryDate *time.Time                        `json:"expiry_date"`
-	Cost       int64                             `json:"cost"`
+	Cost       float64                           `json:"cost"`
 	Receptor   string                            `json:"receptor"`
 	Message    string                            `json:"message"`
 	Profile    string                            `json:"profile"`
