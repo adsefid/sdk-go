@@ -82,7 +82,7 @@ func main() {
 	}
 
 	// Templates are paged: take is capped at 100.
-	page, err := client.User.GetTemplates(ctx, nil, intPtr(0), intPtr(100))
+	page, err := client.User.GetTemplates(ctx, &adsefid.GetUserTemplatesRequest{Skip: intPtr(0), Take: intPtr(100)})
 	if err != nil {
 		log.Fatalf("get templates: %v", err)
 	}

@@ -3,6 +3,7 @@ package adsefid
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"net/url"
 	"strconv"
 	"time"
@@ -80,6 +81,15 @@ func (u *UserTemplate) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// GetUserTemplatesRequest is the query for UserService.GetTemplates. Every
+// field is optional: State filters by moderation state; Skip (if set) must be
+// non-negative; Take (if set) must be in [1, 100].
+type GetUserTemplatesRequest struct {
+	State *TemplateState
+	Skip  *int
+	Take  *int
+}
+
 // GetUserTemplatesResponse is the response body for UserService.GetTemplates.
 type GetUserTemplatesResponse struct {
 	Items []UserTemplate `json:"items"`
@@ -102,29 +112,31 @@ func (u *UserService) GetProfiles(ctx context.Context) ([]UserProfile, error) {
 }
 
 // GetTemplates fetches a page of the authenticated account's message
-// templates. state (if given) filters by moderation state. skip must be >= 0
-// if given; take must be in [1, 100] if given.
-func (u *UserService) GetTemplates(ctx context.Context, state *TemplateState, skip, take *int) (*GetUserTemplatesResponse, error) {
-	if skip != nil {
-		if err := requireInRange(*skip, 0, int(^uint(0)>>1), "skip"); err != nil {
+// templates. A nil req lists the first page in every state.
+func (u *UserService) GetTemplates(ctx context.Context, req *GetUserTemplatesRequest) (*GetUserTemplatesResponse, error) {
+	if req == nil {
+		req = &GetUserTemplatesRequest{}
+	}
+	if req.Skip != nil {
+		if err := requireInRange(*req.Skip, 0, math.MaxInt, "Skip"); err != nil {
 			return nil, err
 		}
 	}
-	if take != nil {
-		if err := requireInRange(*take, 1, maxTemplatesTake, "take"); err != nil {
+	if req.Take != nil {
+		if err := requireInRange(*req.Take, minTemplatesTake, maxTemplatesTake, "Take"); err != nil {
 			return nil, err
 		}
 	}
 
 	values := url.Values{}
-	if state != nil {
-		values.Set("state", string(*state))
+	if req.State != nil {
+		values.Set("state", string(*req.State))
 	}
-	if skip != nil {
-		values.Set("skip", strconv.Itoa(*skip))
+	if req.Skip != nil {
+		values.Set("skip", strconv.Itoa(*req.Skip))
 	}
-	if take != nil {
-		values.Set("take", strconv.Itoa(*take))
+	if req.Take != nil {
+		values.Set("take", strconv.Itoa(*req.Take))
 	}
 
 	path := "/v1/user/templates"

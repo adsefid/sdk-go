@@ -47,7 +47,7 @@ func main() {
 	fmt.Printf("scheduled %s for %s\n", sent.MessageID, sendAt.Format(time.RFC3339))
 
 	// Look it up by our ID and by your own local_id in one call.
-	status, err := client.SMS.GetStatus(ctx, []string{sent.MessageID}, []string{"demo-cancel-1"})
+	status, err := client.SMS.GetStatus(ctx, &adsefid.GetSmsStatusRequest{MessageIDs: []string{sent.MessageID}, LocalIDs: []string{"demo-cancel-1"}})
 	if err != nil {
 		log.Fatalf("get status: %v", err)
 	}
@@ -77,7 +77,7 @@ func main() {
 	// Inbound messages. count is capped at 499; since filters by arrival time.
 	since := time.Now().Add(-24 * time.Hour)
 	count := 50
-	received, err := client.SMS.GetReceived(ctx, lineNumber, &count, &since)
+	received, err := client.SMS.GetReceived(ctx, &adsefid.GetReceivedSmsRequest{LineNumber: lineNumber, Count: &count, Since: &since})
 	if err != nil {
 		log.Fatalf("get received: %v", err)
 	}

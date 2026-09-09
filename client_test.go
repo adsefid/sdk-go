@@ -17,8 +17,12 @@ func TestNewClientValidation(t *testing.T) {
 	}{
 		{name: "defaults", apiKey: "k"},
 		{name: "blank api key", apiKey: "", wantReject: true},
+		{name: "whitespace api key", apiKey: "   ", wantReject: true},
 		{name: "blank base url", apiKey: "k", opts: []ClientOption{WithBaseURL("")}, wantReject: true},
 		{name: "base url of only slashes", apiKey: "k", opts: []ClientOption{WithBaseURL("///")}, wantReject: true},
+		{name: "base url without a scheme", apiKey: "k", opts: []ClientOption{WithBaseURL("api.test")}, wantReject: true},
+		{name: "base url with a non-http scheme", apiKey: "k", opts: []ClientOption{WithBaseURL("ftp://api.test")}, wantReject: true},
+		{name: "plain http base url", apiKey: "k", opts: []ClientOption{WithBaseURL("http://localhost:8080")}},
 		{name: "blank user agent", apiKey: "k", opts: []ClientOption{WithUserAgent("  ")}, wantReject: true},
 		{name: "user agent with a newline", apiKey: "k", opts: []ClientOption{WithUserAgent("bad\nagent")}, wantReject: true},
 		{name: "user agent with a carriage return", apiKey: "k", opts: []ClientOption{WithUserAgent("bad\ragent")}, wantReject: true},

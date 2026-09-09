@@ -206,7 +206,7 @@ func TestErrorDetailsShapes(t *testing.T) {
 		client, _ := newTestClient(t, jsonHandler(
 			http.StatusBadRequest, mustFixture(t, "errors/error.invalid_parameter.json")))
 
-		_, err := client.User.GetTemplates(context.Background(), nil, nil, nil)
+		_, err := client.User.GetTemplates(context.Background(), nil)
 
 		var apiErr *APIError
 		if !errors.As(err, &apiErr) {

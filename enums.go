@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // LineSelector selects which line-accounting mode a send should use. See the
@@ -264,6 +265,43 @@ func (v WebServiceResponseCode) String() string {
 	default:
 		return fmt.Sprintf("WebServiceResponseCode(%d)", int(v))
 	}
+}
+
+// A WebServiceCode (doc section 3.3) is the raw per-item status in a bulk or
+// P2P send response: 1000-1999 is a WebServiceMessageStatus (the item was
+// accepted), 2000 and above is a WebServiceResponseCode (that one item was
+// rejected even though the response as a whole succeeded).
+const (
+	webServiceMessageStatusMin = 1000
+	webServiceResponseCodeMin  = 2000
+)
+
+// MessageStatusOf splits a raw per-item WebServiceCode: it returns the
+// WebServiceMessageStatus and true when code is in 1000-1999 and names a
+// status this SDK knows, otherwise 0 and false.
+func MessageStatusOf(code int) (WebServiceMessageStatus, bool) {
+	if code < webServiceMessageStatusMin || code >= webServiceResponseCodeMin {
+		return 0, false
+	}
+	status := WebServiceMessageStatus(code)
+	if strings.HasPrefix(status.String(), "WebServiceMessageStatus(") {
+		return 0, false
+	}
+	return status, true
+}
+
+// ErrorCodeOf splits a raw per-item WebServiceCode: it returns the
+// WebServiceResponseCode and true when code is 2000 or above and names an
+// error this SDK knows, otherwise 0 and false.
+func ErrorCodeOf(code int) (WebServiceResponseCode, bool) {
+	if code < webServiceResponseCodeMin {
+		return 0, false
+	}
+	responseCode := WebServiceResponseCode(code)
+	if strings.HasPrefix(responseCode.String(), "WebServiceResponseCode(") {
+		return 0, false
+	}
+	return responseCode, true
 }
 
 // TemplateState is the moderation state of a user-defined message template.

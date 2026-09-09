@@ -67,6 +67,19 @@ type BulkMessengerReceptorResult struct {
 	Cost      float64 `json:"cost"`
 }
 
+// MessageStatus returns the typed message status when Status is in
+// 1000-1999 and names a status this SDK knows; see MessageStatusOf.
+func (r BulkMessengerReceptorResult) MessageStatus() (WebServiceMessageStatus, bool) {
+	return MessageStatusOf(r.Status)
+}
+
+// ErrorCode returns the typed error code when Status is 2000 or above and
+// names an error this SDK knows, meaning this one item was rejected; see
+// ErrorCodeOf.
+func (r BulkMessengerReceptorResult) ErrorCode() (WebServiceResponseCode, bool) {
+	return ErrorCodeOf(r.Status)
+}
+
 // SendBulkMessengerResponse is the response body for MessengerService.SendBulk.
 type SendBulkMessengerResponse struct {
 	GroupID    string                        `json:"group_id"`
@@ -107,6 +120,19 @@ type P2PMessengerReceptorResult struct {
 	Hide      bool    `json:"hide"`
 	Status    int     `json:"status"`
 	Cost      float64 `json:"cost"`
+}
+
+// MessageStatus returns the typed message status when Status is in
+// 1000-1999 and names a status this SDK knows; see MessageStatusOf.
+func (r P2PMessengerReceptorResult) MessageStatus() (WebServiceMessageStatus, bool) {
+	return MessageStatusOf(r.Status)
+}
+
+// ErrorCode returns the typed error code when Status is 2000 or above and
+// names an error this SDK knows, meaning this one item was rejected; see
+// ErrorCodeOf.
+func (r P2PMessengerReceptorResult) ErrorCode() (WebServiceResponseCode, bool) {
+	return ErrorCodeOf(r.Status)
 }
 
 // SendP2PMessengerResponse is the response body for MessengerService.SendP2P.
@@ -151,6 +177,14 @@ type SendTemplateMessengerResponse struct {
 // UploadMessengerFileResponse is the response body for MessengerService.UploadFile.
 type UploadMessengerFileResponse struct {
 	FileID string `json:"file_id"`
+}
+
+// GetMessengerStatusRequest is the query for MessengerService.GetStatus. At
+// least one of MessageIDs or LocalIDs must be non-empty, and their combined
+// distinct count must not exceed 2000.
+type GetMessengerStatusRequest struct {
+	MessageIDs []string
+	LocalIDs   []string
 }
 
 // MessengerStatusItem is one entry of GetMessengerStatusResponse.Receptors.
@@ -324,16 +358,15 @@ func (m *MessengerService) SendTemplate(ctx context.Context, req *SendTemplateMe
 }
 
 // GetStatus looks up the delivery status of previously sent messages by
-// message ID and/or local ID. At least one of messageIDs or localIDs must be
-// non-empty, and their combined length must not exceed 2000.
-func (m *MessengerService) GetStatus(ctx context.Context, messageIDs, localIDs []string) (*GetMessengerStatusResponse, error) {
-	if err := requireAtLeastOne(len(messageIDs) > 0, len(localIDs) > 0, "at least one of messageIDs or localIDs is required"); err != nil {
+// message ID and/or local ID.
+func (m *MessengerService) GetStatus(ctx context.Context, req *GetMessengerStatusRequest) (*GetMessengerStatusResponse, error) {
+	if err := requireRequest(req); err != nil {
 		return nil, err
 	}
-	if err := requireCombinedCountAtMost(distinctCount(messageIDs), distinctCount(localIDs), maxCombinedIDsLookup, "the combined distinct count of messageIDs and localIDs must not exceed 2000"); err != nil {
+	if err := validateIDsLookup(req.MessageIDs, req.LocalIDs); err != nil {
 		return nil, err
 	}
 
-	path := "/v1/messenger/status" + buildIDsQuery(messageIDs, localIDs)
+	path := "/v1/messenger/status" + buildIDsQuery(req.MessageIDs, req.LocalIDs)
 	return doGet[*GetMessengerStatusResponse](ctx, m.client, path)
 }

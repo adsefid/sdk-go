@@ -16,6 +16,7 @@ const (
 	maxCombinedIDsLookup      = 2000
 	minReceivedCount          = 1
 	maxReceivedCount          = 499
+	minTemplatesTake          = 1
 	maxTemplatesTake          = 100
 )
 
@@ -98,6 +99,15 @@ func requireCombinedCountAtMost(count1, count2, maxAllowed int, message string) 
 		return &ValidationError{Message: message}
 	}
 	return nil
+}
+
+// validateIDsLookup enforces the shared rules of the get-status endpoints: at
+// least one id list, and at most maxCombinedIDsLookup distinct ids in total.
+func validateIDsLookup(messageIDs, localIDs []string) *ValidationError {
+	if err := requireAtLeastOne(len(messageIDs) > 0, len(localIDs) > 0, "at least one of MessageIDs or LocalIDs is required"); err != nil {
+		return err
+	}
+	return requireCombinedCountAtMost(distinctCount(messageIDs), distinctCount(localIDs), maxCombinedIDsLookup, "the combined distinct count of MessageIDs and LocalIDs must not exceed 2000")
 }
 
 func distinctCount(values []string) int {

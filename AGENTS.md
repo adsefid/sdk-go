@@ -48,14 +48,14 @@ over an ambiguous doc reading:
 
 - `client.go` — `Client`, functional-options construction, holds `SMS`/`Messenger`/`User` service handles.
 - `request.go` — single-attempt HTTP transport, envelope decoding, error mapping. No retry logic anywhere, by design.
-- `validate.go` — client-side pre-flight checks (local_id format, length/count limits) that fail fast before any network call.
+- `validate.go` — client-side pre-flight checks (local_id format, length/count limits, the shared get-status id rules) that fail fast before any network call.
 - `errors.go` — the full error type hierarchy.
-- `enums.go` — every documented enum as typed Go constants, plus `TemplateParameterValue`. That
+- `enums.go` — every documented enum as typed Go constants, `MessageStatusOf`/`ErrorCodeOf` (the range split behind the `MessageStatus()`/`ErrorCode()` methods on bulk/P2P items), plus `TemplateParameterValue`. That
   type stores a number as a `json.Number` so exact wire text survives a round trip; a `number`
   template parameter may legitimately travel as a JSON *string*, which is how leading zeros
   (`"001234"`) and exact decimals (`"1.50"`) reach the service intact. Do not "simplify" it back to
   a `float64`.
-- `sms.go` / `messenger.go` / `user.go` — one `*Service` type per resource area.
+- `sms.go` / `messenger.go` / `user.go` — one `*Service` type per resource area. Every method takes `ctx` and one `*XxxRequest` struct, including the GET lookups (`GetSmsStatusRequest`, `GetReceivedSmsRequest`, `GetMessengerStatusRequest`, `GetUserTemplatesRequest`); do not add positional optional parameters.
 - `webhooks/` — signature verification and typed webhook event payloads. The endpoint secret is
   the Base64 encoding of 32 random bytes and the service signs with the **decoded bytes**, so
   `Verify` Base64-decodes before keying the HMAC; `VerifyWithKey` takes raw key bytes. Keying the

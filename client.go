@@ -2,6 +2,7 @@ package adsefid
 
 import (
 	"net/http"
+	"net/url"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -75,7 +76,7 @@ func WithUserAgent(userAgent string) ClientOption {
 // every request as the X-API-KEY header. It returns a *ValidationError if
 // apiKey is blank.
 func NewClient(apiKey string, opts ...ClientOption) (*Client, error) {
-	if apiKey == "" {
+	if strings.TrimSpace(apiKey) == "" {
 		return nil, &ValidationError{Field: "apiKey", Message: "is required"}
 	}
 
@@ -88,8 +89,8 @@ func NewClient(apiKey string, opts ...ClientOption) (*Client, error) {
 		opt(cfg)
 	}
 	cfg.baseURL = strings.TrimRight(cfg.baseURL, "/")
-	if cfg.baseURL == "" {
-		return nil, &ValidationError{Field: "baseURL", Message: "is required"}
+	if parsed, err := url.Parse(cfg.baseURL); err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return nil, &ValidationError{Field: "baseURL", Message: "must be an absolute http(s) URL"}
 	}
 	if strings.TrimSpace(cfg.userAgent) == "" || strings.ContainsAny(cfg.userAgent, "\r\n") {
 		return nil, &ValidationError{Field: "userAgent", Message: "must be non-blank and contain no line breaks"}
