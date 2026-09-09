@@ -431,7 +431,7 @@ go run ./examples/webhookserver    # verify and dispatch inbound webhooks
 
 This SDK follows Semantic Versioning independently of the API documentation.
 
-- SDK version: **`0.3.0`** (repository tag `v0.3.0`)
+- SDK version: **`0.4.0`** (repository tag `v0.4.0`)
 - Verified API documentation: **`v1.12.0`**
 
 SDK releases use `v<SDK_VERSION>` tags. The two version numbers move independently. A future major
