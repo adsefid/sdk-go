@@ -14,15 +14,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      matrix:
+        go-version: ["1.22", "stable"]
     steps:
       - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.22"
+          go-version: ${{ matrix.go-version }}
 
       - run: make deps
       - run: go vet ./...
@@ -34,3 +37,10 @@ jobs:
 
       - run: make build
       - run: go test -race ./...
+
+  # Stable check name for branch protection, regardless of the matrix.
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "all matrix jobs passed"

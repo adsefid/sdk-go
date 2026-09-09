@@ -56,7 +56,7 @@ func TestGetTemplates(t *testing.T) {
 	t.Run("parses the documented shape", func(t *testing.T) {
 		client, requests := newFixtureClient(t, "envelopes/user.get_templates.success.json")
 		state := TemplateStateApproved
-		got, err := client.User.GetTemplates(context.Background(), &state, ptr(0), ptr(50))
+		got, err := client.User.GetTemplates(context.Background(), &GetUserTemplatesRequest{State: &state, Skip: ptr(0), Take: ptr(50)})
 		if err != nil {
 			t.Fatalf("GetTemplates: %v", err)
 		}
@@ -94,7 +94,7 @@ func TestGetTemplates(t *testing.T) {
 	// a value callers cannot switch on.
 	t.Run("drops undocumented parameter types", func(t *testing.T) {
 		client, _ := newFixtureClient(t, "envelopes/user.get_templates.unknown_type.json")
-		got, err := client.User.GetTemplates(context.Background(), nil, nil, nil)
+		got, err := client.User.GetTemplates(context.Background(), nil)
 		if err != nil {
 			t.Fatalf("GetTemplates: %v", err)
 		}
@@ -109,7 +109,7 @@ func TestGetTemplates(t *testing.T) {
 
 	t.Run("omits absent query parameters entirely", func(t *testing.T) {
 		client, requests := newFixtureClient(t, "envelopes/user.get_templates.success.json")
-		if _, err := client.User.GetTemplates(context.Background(), nil, nil, nil); err != nil {
+		if _, err := client.User.GetTemplates(context.Background(), nil); err != nil {
 			t.Fatalf("GetTemplates: %v", err)
 		}
 		if got := onlyRequest(t, requests).RawQuery; got != "" {
@@ -128,7 +128,7 @@ func TestGetTemplates(t *testing.T) {
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				client, requests := newFixtureClient(t, "envelopes/user.get_templates.success.json")
-				_, err := client.User.GetTemplates(context.Background(), nil, tc.skip, tc.take)
+				_, err := client.User.GetTemplates(context.Background(), &GetUserTemplatesRequest{Skip: tc.skip, Take: tc.take})
 				var validationErr *ValidationError
 				if !asError(err, &validationErr) {
 					t.Fatalf("expected a *ValidationError, got %#v", err)
@@ -143,7 +143,7 @@ func TestGetTemplates(t *testing.T) {
 	t.Run("accepts the take boundaries", func(t *testing.T) {
 		for _, take := range []int{1, maxTemplatesTake} {
 			client, _ := newFixtureClient(t, "envelopes/user.get_templates.success.json")
-			if _, err := client.User.GetTemplates(context.Background(), nil, nil, ptr(take)); err != nil {
+			if _, err := client.User.GetTemplates(context.Background(), &GetUserTemplatesRequest{Take: ptr(take)}); err != nil {
 				t.Errorf("take=%d should be accepted: %v", take, err)
 			}
 		}

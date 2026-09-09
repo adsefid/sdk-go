@@ -150,7 +150,7 @@ func TestSMSRequestBuilding(t *testing.T) {
 			name:    "get status",
 			fixture: "envelopes/sms.get_status.success.json",
 			call: func(c *Client) error {
-				_, err := c.SMS.GetStatus(context.Background(), []string{"m1", "m2"}, []string{"l1"})
+				_, err := c.SMS.GetStatus(context.Background(), &GetSmsStatusRequest{MessageIDs: []string{"m1", "m2"}, LocalIDs: []string{"l1"}})
 				return err
 			},
 			wantMethod: http.MethodGet,
@@ -174,7 +174,7 @@ func TestSMSRequestBuilding(t *testing.T) {
 			name:    "get received",
 			fixture: "envelopes/sms.get_received.success.json",
 			call: func(c *Client) error {
-				_, err := c.SMS.GetReceived(context.Background(), "3000xxxx", ptr(10), nil)
+				_, err := c.SMS.GetReceived(context.Background(), &GetReceivedSmsRequest{LineNumber: "3000xxxx", Count: ptr(10)})
 				return err
 			},
 			wantMethod: http.MethodGet,
@@ -266,7 +266,7 @@ func TestSMSResponseParsing(t *testing.T) {
 
 	t.Run("get status", func(t *testing.T) {
 		client, _ := newFixtureClient(t, "envelopes/sms.get_status.success.json")
-		got, err := client.SMS.GetStatus(context.Background(), []string{"m1"}, nil)
+		got, err := client.SMS.GetStatus(context.Background(), &GetSmsStatusRequest{MessageIDs: []string{"m1"}})
 		if err != nil {
 			t.Fatalf("GetStatus: %v", err)
 		}
@@ -277,7 +277,7 @@ func TestSMSResponseParsing(t *testing.T) {
 
 	t.Run("get received", func(t *testing.T) {
 		client, _ := newFixtureClient(t, "envelopes/sms.get_received.success.json")
-		got, err := client.SMS.GetReceived(context.Background(), "3000xxxx", nil, nil)
+		got, err := client.SMS.GetReceived(context.Background(), &GetReceivedSmsRequest{LineNumber: "3000xxxx"})
 		if err != nil {
 			t.Fatalf("GetReceived: %v", err)
 		}
@@ -329,6 +329,19 @@ func TestPartialSuccessIsNotAnError(t *testing.T) {
 		if got.Receptors[1].MessageID != nil {
 			t.Error("a failed receptor should have a null message_id")
 		}
+		// The typed views split the WebServiceCode by range, so a caller never compares raw ints.
+		if status, ok := got.Receptors[0].MessageStatus(); !ok || status != WebServiceMessageStatusScheduled {
+			t.Errorf("first receptor MessageStatus() = %v, %v; want Scheduled, true", status, ok)
+		}
+		if _, ok := got.Receptors[0].ErrorCode(); ok {
+			t.Error("an accepted receptor must not report an ErrorCode")
+		}
+		if _, ok := got.Receptors[1].MessageStatus(); ok {
+			t.Error("a rejected receptor must not report a MessageStatus")
+		}
+		if code, ok := got.Receptors[1].ErrorCode(); !ok || code != WebServiceResponseCodeReceptorBlacklisted {
+			t.Errorf("second receptor ErrorCode() = %v, %v; want ReceptorBlacklisted, true", code, ok)
+		}
 		if got.Counts["2025"] != 1 || got.TotalCount != 2 {
 			t.Errorf("counts = %v, total = %d", got.Counts, got.TotalCount)
 		}
@@ -342,6 +355,9 @@ func TestPartialSuccessIsNotAnError(t *testing.T) {
 		})
 		if err != nil {
 			t.Fatalf("a partial success must not be an error, got %v", err)
+		}
+		if code, ok := got.Messages[1].ErrorCode(); !ok || code != WebServiceResponseCodeInvalidReceptor {
+			t.Errorf("second message ErrorCode() = %v, %v; want InvalidReceptor, true", code, ok)
 		}
 		if len(got.Messages) != 2 || got.Messages[1].Status != 2014 {
 			t.Errorf("unexpected messages %+v", got.Messages)
@@ -395,7 +411,7 @@ func TestSMSValidationRejectsBeforeSending(t *testing.T) {
 			return err
 		}},
 		{"get status with neither id list", func(c *Client) error {
-			_, err := c.SMS.GetStatus(context.Background(), nil, nil)
+			_, err := c.SMS.GetStatus(context.Background(), &GetSmsStatusRequest{})
 			return err
 		}},
 		{"cancel with neither id list", func(c *Client) error {
@@ -403,21 +419,21 @@ func TestSMSValidationRejectsBeforeSending(t *testing.T) {
 			return err
 		}},
 		{"received count over 499", func(c *Client) error {
-			_, err := c.SMS.GetReceived(context.Background(), "3000", ptr(maxReceivedCount+1), nil)
+			_, err := c.SMS.GetReceived(context.Background(), &GetReceivedSmsRequest{LineNumber: "3000", Count: ptr(maxReceivedCount + 1)})
 			return err
 		}},
 		{"received count of zero", func(c *Client) error {
 			// The service requires 1..499, so 0 is rejected here rather than
 			// being sent and bounced back as an API error.
-			_, err := c.SMS.GetReceived(context.Background(), "3000", ptr(0), nil)
+			_, err := c.SMS.GetReceived(context.Background(), &GetReceivedSmsRequest{LineNumber: "3000", Count: ptr(0)})
 			return err
 		}},
 		{"negative received count", func(c *Client) error {
-			_, err := c.SMS.GetReceived(context.Background(), "3000", ptr(-1), nil)
+			_, err := c.SMS.GetReceived(context.Background(), &GetReceivedSmsRequest{LineNumber: "3000", Count: ptr(-1)})
 			return err
 		}},
 		{"received with empty line number", func(c *Client) error {
-			_, err := c.SMS.GetReceived(context.Background(), "", nil, nil)
+			_, err := c.SMS.GetReceived(context.Background(), &GetReceivedSmsRequest{})
 			return err
 		}},
 	}
@@ -446,7 +462,7 @@ func TestGetStatusCombinedIDLimit(t *testing.T) {
 	}
 
 	client, requests := newFixtureClient(t, "envelopes/sms.get_status.success.json")
-	if _, err := client.SMS.GetStatus(context.Background(), atLimit, nil); err != nil {
+	if _, err := client.SMS.GetStatus(context.Background(), &GetSmsStatusRequest{MessageIDs: atLimit}); err != nil {
 		t.Fatalf("exactly 2000 distinct ids should be accepted: %v", err)
 	}
 	if len(*requests) != 1 {
@@ -455,7 +471,7 @@ func TestGetStatusCombinedIDLimit(t *testing.T) {
 
 	overLimit := append(append([]string{}, atLimit...), "one-too-many")
 	client2, requests2 := newFixtureClient(t, "envelopes/sms.get_status.success.json")
-	if _, err := client2.SMS.GetStatus(context.Background(), overLimit, nil); err == nil {
+	if _, err := client2.SMS.GetStatus(context.Background(), &GetSmsStatusRequest{MessageIDs: overLimit}); err == nil {
 		t.Error("2001 distinct ids should be rejected")
 	}
 	if len(*requests2) != 0 {
@@ -467,7 +483,7 @@ func TestGetStatusCombinedIDLimit(t *testing.T) {
 		duplicates[i] = "same-id"
 	}
 	client3, _ := newFixtureClient(t, "envelopes/sms.get_status.success.json")
-	if _, err := client3.SMS.GetStatus(context.Background(), duplicates, nil); err != nil {
+	if _, err := client3.SMS.GetStatus(context.Background(), &GetSmsStatusRequest{MessageIDs: duplicates}); err != nil {
 		t.Errorf("duplicates collapse to one distinct id and should be accepted: %v", err)
 	}
 }
@@ -477,7 +493,7 @@ func TestGetStatusCombinedIDLimit(t *testing.T) {
 func TestGetReceivedCountBoundaries(t *testing.T) {
 	for _, count := range []int{minReceivedCount, 250, maxReceivedCount} {
 		client, requests := newFixtureClient(t, "envelopes/sms.get_received.success.json")
-		if _, err := client.SMS.GetReceived(context.Background(), "3000xxxx", ptr(count), nil); err != nil {
+		if _, err := client.SMS.GetReceived(context.Background(), &GetReceivedSmsRequest{LineNumber: "3000xxxx", Count: ptr(count)}); err != nil {
 			t.Errorf("count=%d should be accepted: %v", count, err)
 		}
 		if len(*requests) != 1 {

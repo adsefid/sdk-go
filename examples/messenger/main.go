@@ -46,7 +46,7 @@ func main() {
 	}
 	fmt.Printf("\nsent %s via %s: %s (cost %g)\n", sent.MessageID, sent.Messenger, sent.Status, sent.Cost)
 
-	status, err := client.Messenger.GetStatus(ctx, []string{sent.MessageID}, nil)
+	status, err := client.Messenger.GetStatus(ctx, &adsefid.GetMessengerStatusRequest{MessageIDs: []string{sent.MessageID}})
 	if err != nil {
 		log.Fatalf("get status: %v", err)
 	}

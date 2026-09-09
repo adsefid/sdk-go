@@ -59,8 +59,8 @@ type SendBulkSmsRequest struct {
 //
 // Status is a plain int, not a typed WebServiceMessageStatus, because a
 // failed per-receptor result can carry a WebServiceResponseCode (2000+)
-// instead of a WebServiceMessageStatus (1000-1999). Compare it against both
-// enums' underlying int values as needed.
+// instead of a WebServiceMessageStatus (1000-1999). MessageStatus and
+// ErrorCode split it into the typed enum for its range.
 type BulkSmsReceptorResult struct {
 	MessageID *string `json:"message_id"`
 	Receptor  string  `json:"receptor"`
@@ -68,6 +68,19 @@ type BulkSmsReceptorResult struct {
 	Status    int     `json:"status"`
 	Hide      bool    `json:"hide"`
 	Cost      float64 `json:"cost"`
+}
+
+// MessageStatus returns the typed message status when Status is in
+// 1000-1999 and names a status this SDK knows; see MessageStatusOf.
+func (r BulkSmsReceptorResult) MessageStatus() (WebServiceMessageStatus, bool) {
+	return MessageStatusOf(r.Status)
+}
+
+// ErrorCode returns the typed error code when Status is 2000 or above and
+// names an error this SDK knows, meaning this one item was rejected; see
+// ErrorCodeOf.
+func (r BulkSmsReceptorResult) ErrorCode() (WebServiceResponseCode, bool) {
+	return ErrorCodeOf(r.Status)
 }
 
 // SendBulkSmsResponse is the response body for SMSService.SendBulk.
@@ -114,6 +127,17 @@ type P2PSmsMessageResult struct {
 	Cost         float64 `json:"cost"`
 }
 
+// MessageStatus returns the typed message status when Status is in
+// 1000-1999 and names a status this SDK knows; see MessageStatusOf.
+func (r P2PSmsMessageResult) MessageStatus() (WebServiceMessageStatus, bool) {
+	return MessageStatusOf(r.Status)
+}
+
+// ErrorCode returns the typed error code when Status is 2000 or above and
+// names an error this SDK knows, meaning this one item was rejected; see
+// ErrorCodeOf.
+func (r P2PSmsMessageResult) ErrorCode() (WebServiceResponseCode, bool) { return ErrorCodeOf(r.Status) }
+
 // SendP2PSmsResponse is the response body for SMSService.SendP2P.
 type SendP2PSmsResponse struct {
 	GroupID      string                `json:"group_id"`
@@ -154,6 +178,14 @@ type SendTemplateSmsResponse struct {
 	Parameters   map[string]TemplateParameterValue `json:"parameters"`
 }
 
+// GetSmsStatusRequest is the query for SMSService.GetStatus. At least one of
+// MessageIDs or LocalIDs must be non-empty, and their combined distinct count
+// must not exceed 2000.
+type GetSmsStatusRequest struct {
+	MessageIDs []string
+	LocalIDs   []string
+}
+
 // SmsStatusItem is one entry of GetSmsStatusResponse.Receptors.
 type SmsStatusItem struct {
 	MessageID    string                  `json:"message_id"`
@@ -188,6 +220,15 @@ type CancelledSmsItem struct {
 type CancelSmsResponse struct {
 	CancelledMessages []CancelledSmsItem `json:"cancelled_messages"`
 	FailedToCancel    []CancelledSmsItem `json:"failed_to_cancel"`
+}
+
+// GetReceivedSmsRequest is the query for SMSService.GetReceived. LineNumber is
+// required; Count (if set) must be in [1, 499]; Since (if set) filters to
+// messages received at or after that time.
+type GetReceivedSmsRequest struct {
+	LineNumber string
+	Count      *int
+	Since      *time.Time
 }
 
 // ReceivedSmsMessage is one entry of GetReceivedSmsResponse.Messages.
@@ -308,17 +349,16 @@ func (s *SMSService) SendTemplate(ctx context.Context, req *SendTemplateSmsReque
 }
 
 // GetStatus looks up the delivery status of previously sent messages by
-// message ID and/or local ID. At least one of messageIDs or localIDs must be
-// non-empty, and their combined length must not exceed 2000.
-func (s *SMSService) GetStatus(ctx context.Context, messageIDs, localIDs []string) (*GetSmsStatusResponse, error) {
-	if err := requireAtLeastOne(len(messageIDs) > 0, len(localIDs) > 0, "at least one of messageIDs or localIDs is required"); err != nil {
+// message ID and/or local ID.
+func (s *SMSService) GetStatus(ctx context.Context, req *GetSmsStatusRequest) (*GetSmsStatusResponse, error) {
+	if err := requireRequest(req); err != nil {
 		return nil, err
 	}
-	if err := requireCombinedCountAtMost(distinctCount(messageIDs), distinctCount(localIDs), maxCombinedIDsLookup, "the combined distinct count of messageIDs and localIDs must not exceed 2000"); err != nil {
+	if err := validateIDsLookup(req.MessageIDs, req.LocalIDs); err != nil {
 		return nil, err
 	}
 
-	path := "/v1/sms/status" + buildIDsQuery(messageIDs, localIDs)
+	path := "/v1/sms/status" + buildIDsQuery(req.MessageIDs, req.LocalIDs)
 	return doGet[*GetSmsStatusResponse](ctx, s.client, path)
 }
 
@@ -335,26 +375,27 @@ func (s *SMSService) Cancel(ctx context.Context, req *CancelSmsRequest) (*Cancel
 	return doPostJSON[*CancelSmsResponse](ctx, s.client, "/v1/sms/cancel", req)
 }
 
-// GetReceived fetches inbound SMS messages received on lineNumber. count (if
-// given) must be in [1, 499]; since (if given) filters to messages received
-// at or after that time.
-func (s *SMSService) GetReceived(ctx context.Context, lineNumber string, count *int, since *time.Time) (*GetReceivedSmsResponse, error) {
-	if err := requireNonEmpty(lineNumber, "lineNumber"); err != nil {
+// GetReceived fetches inbound SMS messages received on req.LineNumber.
+func (s *SMSService) GetReceived(ctx context.Context, req *GetReceivedSmsRequest) (*GetReceivedSmsResponse, error) {
+	if err := requireRequest(req); err != nil {
 		return nil, err
 	}
-	if count != nil {
-		if err := requireInRange(*count, minReceivedCount, maxReceivedCount, "count"); err != nil {
+	if err := requireNonEmpty(req.LineNumber, "LineNumber"); err != nil {
+		return nil, err
+	}
+	if req.Count != nil {
+		if err := requireInRange(*req.Count, minReceivedCount, maxReceivedCount, "Count"); err != nil {
 			return nil, err
 		}
 	}
 
 	values := url.Values{}
-	values.Set("line_number", lineNumber)
-	if count != nil {
-		values.Set("count", strconv.Itoa(*count))
+	values.Set("line_number", req.LineNumber)
+	if req.Count != nil {
+		values.Set("count", strconv.Itoa(*req.Count))
 	}
-	if since != nil {
-		values.Set("since", since.Format(time.RFC3339Nano))
+	if req.Since != nil {
+		values.Set("since", req.Since.Format(time.RFC3339Nano))
 	}
 
 	path := "/v1/sms/receive?" + values.Encode()

@@ -95,7 +95,7 @@ func TestMessengerRequestBuilding(t *testing.T) {
 			name:    "get status",
 			fixture: "envelopes/messenger.get_status.success.json",
 			call: func(c *Client) error {
-				_, err := c.Messenger.GetStatus(context.Background(), []string{"m1"}, []string{"l1"})
+				_, err := c.Messenger.GetStatus(context.Background(), &GetMessengerStatusRequest{MessageIDs: []string{"m1"}, LocalIDs: []string{"l1"}})
 				return err
 			},
 			wantMethod: http.MethodGet,
@@ -223,7 +223,7 @@ func TestMessengerValidationRejectsBeforeSending(t *testing.T) {
 			return err
 		}},
 		{"get status with neither id list", func(c *Client) error {
-			_, err := c.Messenger.GetStatus(context.Background(), nil, nil)
+			_, err := c.Messenger.GetStatus(context.Background(), &GetMessengerStatusRequest{})
 			return err
 		}},
 	}

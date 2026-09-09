@@ -104,20 +104,20 @@ Monetary response fields (`Cost`, `TotalCost`, and `CreditLeft`) use `float64` a
 | `client.SMS` | `SendBulk(ctx, *SendBulkSmsRequest)` | `POST /v1/sms/bulk` | Partial success is a normal typed return |
 | `client.SMS` | `SendP2P(ctx, *SendP2PSmsRequest)` | `POST /v1/sms/p2p` | Partial success is a normal typed return |
 | `client.SMS` | `SendTemplate(ctx, *SendTemplateSmsRequest)` | `POST /v1/sms/template` | |
-| `client.SMS` | `GetStatus(ctx, messageIDs, localIDs []string)` | `GET /v1/sms/status` | |
+| `client.SMS` | `GetStatus(ctx, *GetSmsStatusRequest)` | `GET /v1/sms/status` | |
 | `client.SMS` | `Cancel(ctx, *CancelSmsRequest)` | `POST /v1/sms/cancel` | |
-| `client.SMS` | `GetReceived(ctx, lineNumber string, count *int, since *time.Time)` | `GET /v1/sms/receive` | |
+| `client.SMS` | `GetReceived(ctx, *GetReceivedSmsRequest)` | `GET /v1/sms/receive` | |
 | `client.Messenger` | `SendSingle(ctx, *SendSingleMessengerRequest)` | `POST /v1/messenger/single` | |
 | `client.Messenger` | `SendBulk(ctx, *SendBulkMessengerRequest)` | `POST /v1/messenger/bulk` | Partial success is a normal typed return |
 | `client.Messenger` | `SendP2P(ctx, *SendP2PMessengerRequest)` | `POST /v1/messenger/p2p` | Partial success is a normal typed return |
 | `client.Messenger` | `UploadFile(ctx, io.Reader, fileName, contentType string)` | `POST /v1/messenger/file` | Caller owns the reader |
 | `client.Messenger` | `Cancel(ctx, *CancelMessengerRequest)` | `POST /v1/messenger/cancel` | |
 | `client.Messenger` | `SendTemplate(ctx, *SendTemplateMessengerRequest)` | `POST /v1/messenger/template` | |
-| `client.Messenger` | `GetStatus(ctx, messageIDs, localIDs []string)` | `GET /v1/messenger/status` | |
+| `client.Messenger` | `GetStatus(ctx, *GetMessengerStatusRequest)` | `GET /v1/messenger/status` | |
 | `client.User` | `GetInfo(ctx)` | `GET /v1/user/info` | |
 | `client.User` | `GetLines(ctx)` | `GET /v1/user/lines` | |
 | `client.User` | `GetProfiles(ctx)` | `GET /v1/user/profiles` | |
-| `client.User` | `GetTemplates(ctx, state *TemplateState, skip, take *int)` | `GET /v1/user/templates` | |
+| `client.User` | `GetTemplates(ctx, *GetUserTemplatesRequest)` | `GET /v1/user/templates` | `nil` lists the first page in every state |
 
 Every method takes a `context.Context` as its first argument and returns `(T, error)` or
 `(*T, error)` — there are no panics for expected failure conditions.
@@ -208,8 +208,24 @@ degrade gracefully (e.g. `WebServiceResponseCode(9999)`) rather than failing to 
 Bulk and P2P per-item results (`BulkSmsReceptorResult.Status`, `P2PSmsMessageResult.Status`,
 `BulkMessengerReceptorResult.Status`, `P2PMessengerReceptorResult.Status`) are a plain `int`, not a
 typed enum, because a failed item's `status` can carry either a `WebServiceMessageStatus` (1000+)
-or a `WebServiceResponseCode` (2000+). Top-level statuses (single send, get-status, cancel) are
-always in the 1000-1999 range and use the typed `WebServiceMessageStatus`.
+or a `WebServiceResponseCode` (2000+). Each item's `MessageStatus()` and `ErrorCode()` methods split
+that value into the typed enum for its range (`ok` is false for the other range and for a code this
+SDK does not know yet), and `adsefid.MessageStatusOf`/`adsefid.ErrorCodeOf` do the same for any raw
+value:
+
+```go
+for _, item := range resp.Receptors {
+	if code, ok := item.ErrorCode(); ok {
+		fmt.Printf("%s: rejected (%s)\n", item.Receptor, code)
+		continue
+	}
+	status, _ := item.MessageStatus()
+	fmt.Printf("%s: %s\n", item.Receptor, status)
+}
+```
+
+Top-level statuses (single send, get-status, cancel) are always in the 1000-1999 range and use the
+typed `WebServiceMessageStatus`.
 
 `TemplateParameterValue` models a template parameter's value, which the API accepts and returns as
 either a JSON string or a JSON number:

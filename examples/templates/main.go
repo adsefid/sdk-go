@@ -83,7 +83,7 @@ func firstApprovedTemplate(ctx context.Context, client *adsefid.Client) adsefid.
 	approved := adsefid.TemplateStateApproved
 	take := 100
 
-	page, err := client.User.GetTemplates(ctx, &approved, nil, &take)
+	page, err := client.User.GetTemplates(ctx, &adsefid.GetUserTemplatesRequest{State: &approved, Take: &take})
 	if err != nil {
 		log.Fatalf("list templates: %v", err)
 	}

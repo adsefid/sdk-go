@@ -2,10 +2,9 @@
 // more importantly, how to read a partial success.
 //
 // Bulk and P2P sends answer HTTP 200 even when some receptors failed. The
-// per-item Status is a plain int because a failed item carries a
-// WebServiceResponseCode (2000+) where a successful one carries a
-// WebServiceMessageStatus (1000-1999). Always inspect the items; a nil error
-// does not mean every message went out.
+// per-item Status is the raw WebServiceCode; MessageStatus() and ErrorCode()
+// split it into the typed enum for its range. Always inspect the items; a nil
+// error does not mean every message went out.
 package main
 
 import (
@@ -81,16 +80,17 @@ func sendP2P(ctx context.Context, client *adsefid.Client, lineNumber string) {
 }
 
 // report prints one per-item result. A status below 2000 is a message status;
-// 2000 and above is an error code explaining why that one receptor failed.
+// report prints one item. ErrorCode() is set for a rejected item and
+// MessageStatus() for an accepted one; neither is set for a code this SDK
+// does not know yet, so the raw Status is printed in that case.
 func report(receptor string, localID *string, status int, messageID *string) {
 	label := "-"
 	if localID != nil {
 		label = *localID
 	}
 
-	if status >= 2000 {
-		fmt.Printf("  %-12s (%s) FAILED with code %d (%s)\n",
-			receptor, label, status, adsefid.WebServiceResponseCode(status))
+	if code, ok := adsefid.ErrorCodeOf(status); ok {
+		fmt.Printf("  %-12s (%s) FAILED with code %d (%s)\n", receptor, label, status, code)
 		return
 	}
 
@@ -98,8 +98,11 @@ func report(receptor string, localID *string, status int, messageID *string) {
 	if messageID != nil {
 		id = *messageID
 	}
-	fmt.Printf("  %-12s (%s) accepted as %s: %s\n",
-		receptor, label, id, adsefid.WebServiceMessageStatus(status))
+	if messageStatus, ok := adsefid.MessageStatusOf(status); ok {
+		fmt.Printf("  %-12s (%s) accepted as %s: %s\n", receptor, label, id, messageStatus)
+		return
+	}
+	fmt.Printf("  %-12s (%s) reported an unknown status code %d\n", receptor, label, status)
 }
 
 func strPtr(s string) *string { return &s }

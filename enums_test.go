@@ -203,3 +203,32 @@ func TestSharedTemplateExample(t *testing.T) {
 		t.Errorf("serialized as\n  %s\nwant\n  %s", got, example.ExpectedJSON)
 	}
 }
+
+// TestWebServiceCodeSplit pins the range split behind MessageStatus()/ErrorCode()
+// on bulk and P2P items: 1000-1999 is a message status, 2000+ an error code, and
+// a value this SDK does not know yet is neither.
+func TestWebServiceCodeSplit(t *testing.T) {
+	tests := []struct {
+		code       int
+		wantStatus WebServiceMessageStatus
+		wantError  WebServiceResponseCode
+	}{
+		{1000, WebServiceMessageStatusScheduled, 0},
+		{1002, WebServiceMessageStatusDelivered, 0},
+		{2025, 0, WebServiceResponseCodeReceptorBlacklisted},
+		{2014, 0, WebServiceResponseCodeInvalidReceptor},
+		{1500, 0, 0},
+		{2999, 0, 0},
+		{0, 0, 0},
+	}
+	for _, tc := range tests {
+		status, okStatus := MessageStatusOf(tc.code)
+		if okStatus != (tc.wantStatus != 0) || status != tc.wantStatus {
+			t.Errorf("MessageStatusOf(%d) = %v, %v; want %v, %v", tc.code, status, okStatus, tc.wantStatus, tc.wantStatus != 0)
+		}
+		code, okError := ErrorCodeOf(tc.code)
+		if okError != (tc.wantError != 0) || code != tc.wantError {
+			t.Errorf("ErrorCodeOf(%d) = %v, %v; want %v, %v", tc.code, code, okError, tc.wantError, tc.wantError != 0)
+		}
+	}
+}
