@@ -74,9 +74,9 @@ func firstProfile(ctx context.Context, client *adsefid.Client) string {
 // real program it is usually an *os.File, which is also an io.Reader — the SDK
 // streams it rather than buffering the whole file.
 func uploadAttachment(ctx context.Context, client *adsefid.Client) string {
-	content := strings.NewReader("Statement for September 2026\nTotal: 1,250,000 IRR\n")
+	content := strings.NewReader("%PDF-1.1\n%%EOF\n")
 
-	uploaded, err := client.Messenger.UploadFile(ctx, content, "statement.txt", "text/plain")
+	uploaded, err := client.Messenger.UploadFile(ctx, content, "statement.pdf", "application/pdf")
 	if err != nil {
 		log.Fatalf("upload: %v", err)
 	}

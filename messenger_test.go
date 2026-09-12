@@ -38,27 +38,37 @@ func TestMessengerRequestBuilding(t *testing.T) {
 		},
 		{
 			name:    "send bulk",
-			fixture: "envelopes/messenger.send_bulk.success.json",
+			fixture: "envelopes/messenger.send_bulk.partial_success.json",
 			call: func(c *Client) error {
 				_, err := c.Messenger.SendBulk(context.Background(), &SendBulkMessengerRequest{
-					Receptors: []BulkMessengerReceptor{{Receptor: "a"}}, Message: "m", Profile: "p",
+					Receptors: []BulkMessengerReceptor{{Receptor: "a"}, {Receptor: "", LocalID: ptr("-bad")}}, Message: "m", Profile: "p",
 				})
 				return err
 			},
 			wantMethod: http.MethodPost,
 			wantPath:   "/v1/messenger/bulk",
+			assertBody: func(t *testing.T, body map[string]any) {
+				if receptors, ok := body["receptors"].([]any); !ok || len(receptors) != 2 {
+					t.Errorf("expected 2 receptors, got %v", body["receptors"])
+				}
+			},
 		},
 		{
 			name:    "send p2p",
-			fixture: "envelopes/messenger.send_p2p.success.json",
+			fixture: "envelopes/messenger.send_p2p.partial_success.json",
 			call: func(c *Client) error {
 				_, err := c.Messenger.SendP2P(context.Background(), &SendP2PMessengerRequest{
-					Receptors: []P2PMessengerReceptor{{Receptor: "a", Message: "m"}}, Profile: "p",
+					Receptors: []P2PMessengerReceptor{{Receptor: "a", Message: "m"}, {Receptor: "", Message: ""}}, Profile: "p",
 				})
 				return err
 			},
 			wantMethod: http.MethodPost,
 			wantPath:   "/v1/messenger/p2p",
+			assertBody: func(t *testing.T, body map[string]any) {
+				if receptors, ok := body["receptors"].([]any); !ok || len(receptors) != 2 {
+					t.Errorf("expected 2 receptors, got %v", body["receptors"])
+				}
+			},
 		},
 		{
 			name:    "cancel",

@@ -1,10 +1,29 @@
 package adsefid
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 )
+
+// APIFieldError is one field-level error in an API error envelope. Code is a
+// named integer, so a newer server code remains readable by older SDKs.
+type APIFieldError struct {
+	Code WebServiceResponseCode `json:"code"`
+	Name string                 `json:"name"`
+}
+
+// APIItemError contains errors for one rejected bulk or P2P request item.
+type APIItemError struct {
+	Index  int                      `json:"index"`
+	Errors map[string]APIFieldError `json:"errors"`
+}
+
+// APIErrorDetails is the structured error-details shape shared by all API
+// endpoint families. Empty properties are omitted by the service.
+type APIErrorDetails struct {
+	Errors map[string]APIFieldError `json:"errors,omitempty"`
+	Items  []APIItemError           `json:"items,omitempty"`
+}
 
 // ValidationError reports a client-side pre-flight validation failure. It is
 // returned before any network request is made.
@@ -33,10 +52,8 @@ type APIError struct {
 	Name string
 	// HTTPStatusCode is the HTTP status code of the response.
 	HTTPStatusCode int
-	// Details carries the endpoint-specific error details payload, if any.
-	// Its shape varies by endpoint and is intentionally left untyped; decode
-	// it defensively per endpoint if you need it.
-	Details json.RawMessage
+	// Details carries structured field and item errors, if any.
+	Details *APIErrorDetails
 }
 
 func (e *APIError) Error() string {

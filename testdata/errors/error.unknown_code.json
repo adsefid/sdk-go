@@ -2,7 +2,6 @@
   "status": "error",
   "error": {
     "code": 2999,
-    "name": "SOME_FUTURE_SERVER_ERROR",
-    "details": null
+    "name": "SOME_FUTURE_SERVER_ERROR"
   }
 }

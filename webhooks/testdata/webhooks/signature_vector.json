@@ -3,6 +3,6 @@
   "secret": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
   "timestamp": "1770000000",
   "body_file": "webhooks/receive.body.json",
-  "signature": "v1=FsrANLUw2xTDKbFb/+21HIbcj3/HQVOBKExOJyse6lQ=",
-  "tampered_signature": "v1=F8rANLUw2xTDKbFb/+21HIbcj3/HQVOBKExOJyse6lQ="
+  "signature": "v1=sDgu3587uumkvRFP9FVJmh3LMWa460kAdIndhG3K4/o=",
+  "tampered_signature": "v1=s8gu3587uumkvRFP9FVJmh3LMWa460kAdIndhG3K4/o="
 }

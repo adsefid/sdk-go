@@ -2,7 +2,6 @@
   "status": "error",
   "error": {
     "code": 2035,
-    "name": "MESSAGE_LIMIT_REACHED",
-    "details": null
+    "name": "MESSAGE_LIMIT_REACHED"
   }
 }
