@@ -8,7 +8,7 @@ import (
 )
 
 // LineSelector selects which line-accounting mode a send should use. See the
-// adsefid.com API documentation (doc v1.12.0, section 3.1).
+// adsefid.com API documentation (doc v1.13.0, section 3.1).
 type LineSelector int
 
 const (
@@ -109,7 +109,7 @@ func (v WebServiceMessageStatus) String() string {
 }
 
 // WebServiceResponseCode is the API's error code, carried in the error
-// envelope's error.code field. Values 2000-2045. See doc section 3.4.
+// envelope's error.code field. Values 2000-2047. See doc section 3.4.
 type WebServiceResponseCode int
 
 const (
@@ -159,6 +159,8 @@ const (
 	WebServiceResponseCodeInvalidFile                   WebServiceResponseCode = 2043
 	WebServiceResponseCodeAccessDenied                  WebServiceResponseCode = 2044
 	WebServiceResponseCodeRejected                      WebServiceResponseCode = 2045
+	WebServiceResponseCodeInvalidMessageIDs             WebServiceResponseCode = 2046
+	WebServiceResponseCodeFileTooLarge                  WebServiceResponseCode = 2047
 
 	// webServiceResponseCodeUnknown is used internally when an error HTTP
 	// response could not be decoded as an error envelope at all (e.g. a bare
@@ -260,6 +262,10 @@ func (v WebServiceResponseCode) String() string {
 		return "AccessDenied"
 	case WebServiceResponseCodeRejected:
 		return "Rejected"
+	case WebServiceResponseCodeInvalidMessageIDs:
+		return "InvalidMessageIds"
+	case WebServiceResponseCodeFileTooLarge:
+		return "FileTooLarge"
 	case webServiceResponseCodeUnknown:
 		return "UnknownError"
 	default:

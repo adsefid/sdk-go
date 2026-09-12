@@ -1,10 +1,15 @@
 {
   "status": "error",
   "error": {
-    "code": 2014,
-    "name": "INVALID_RECEPTOR",
+    "code": 2024,
+    "name": "INVALID_PARAMETER",
     "details": {
-      "receptor": "invalid value for receptor"
+      "errors": {
+        "receptor": {
+          "code": 2014,
+          "name": "INVALID_RECEPTOR"
+        }
+      }
     }
   }
 }

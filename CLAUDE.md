@@ -9,7 +9,7 @@ Equivalent SDKs exist for the same API in sibling repositories (`sdk-dotnet`, `s
 
 The API surface (endpoints, field names, types, validation rules, enums, example payloads,
 webhook behavior) is defined by the published adsefid.com SMS Web Service API documentation. This
-SDK is verified against doc version v1.12.0. Re-read the relevant documentation before changing
+SDK is verified against doc version v1.13.0. Re-read the relevant documentation before changing
 any endpoint, request/response model, or enum. The SDK follows independent Semantic Versioning
 from repository tags; never copy the API-document version into a tag. Record both versions in the
 README. A future v2 must add `/v2` to the module and import paths.
@@ -27,9 +27,11 @@ over an ambiguous doc reading:
   templates that isn't documented; this SDK intentionally models only the two documented values —
   do not add support for it without first confirming it against current, documented API behavior.
   See `enums.go`.
-- `error.details` shape varies per endpoint and is intentionally untyped (`json.RawMessage`). It
-  may be a validation map, a bulk/P2P per-item list, a cancel-specific map, or absent entirely —
-  never give it a strong type; decode it defensively per endpoint if you need it.
+- `error.details` uses the shared typed `APIErrorDetails` shape: optional `Errors` maps field names
+  (or rejected cancel IDs) to `APIFieldError`, and optional `Items` carries indexed `APIItemError`
+  entries. Named integer codes preserve unknown future values.
+- Bulk/P2P item validation happens in the API. Validate request-level fields locally, but send item
+  values unchanged so valid siblings can still succeed.
 
 ## Deliberate deviations from sibling SDKs (documented, not accidental)
 

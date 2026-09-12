@@ -268,7 +268,8 @@ func (s *SMSService) SendSingle(ctx context.Context, req *SendSingleSmsRequest) 
 	return doPostJSON[*SendSingleSmsResponse](ctx, s.client, "/v1/sms/single", req)
 }
 
-// SendBulk sends the same message to many receptors in one call.
+// SendBulk sends the same message to many receptors in one call. Item errors
+// are returned in the partial API response.
 func (s *SMSService) SendBulk(ctx context.Context, req *SendBulkSmsRequest) (*SendBulkSmsResponse, error) {
 	if err := requireRequest(req); err != nil {
 		return nil, err
@@ -285,19 +286,11 @@ func (s *SMSService) SendBulk(ctx context.Context, req *SendBulkSmsRequest) (*Se
 	if err := requireNonEmpty(req.LineNumber, "LineNumber"); err != nil {
 		return nil, err
 	}
-	for i := range req.Receptors {
-		if err := requireNonEmpty(req.Receptors[i].Receptor, "Receptors[].Receptor"); err != nil {
-			return nil, err
-		}
-		if err := validateLocalID(req.Receptors[i].LocalID, "Receptors[].LocalID"); err != nil {
-			return nil, err
-		}
-	}
-
 	return doPostJSON[*SendBulkSmsResponse](ctx, s.client, "/v1/sms/bulk", req)
 }
 
-// SendP2P sends distinct, per-receptor messages in one call.
+// SendP2P sends distinct, per-receptor messages in one call. Item errors are
+// returned in the partial API response.
 func (s *SMSService) SendP2P(ctx context.Context, req *SendP2PSmsRequest) (*SendP2PSmsResponse, error) {
 	if err := requireRequest(req); err != nil {
 		return nil, err
@@ -308,21 +301,6 @@ func (s *SMSService) SendP2P(ctx context.Context, req *SendP2PSmsRequest) (*Send
 	if err := requireNonEmpty(req.LineNumber, "LineNumber"); err != nil {
 		return nil, err
 	}
-	for i := range req.Messages {
-		if err := requireNonEmpty(req.Messages[i].Receptor, "Messages[].Receptor"); err != nil {
-			return nil, err
-		}
-		if err := requireNonEmpty(req.Messages[i].Message, "Messages[].Message"); err != nil {
-			return nil, err
-		}
-		if err := requireMaxLength(req.Messages[i].Message, maxSmsMessageLength, "Messages[].Message"); err != nil {
-			return nil, err
-		}
-		if err := validateLocalID(req.Messages[i].LocalID, "Messages[].LocalID"); err != nil {
-			return nil, err
-		}
-	}
-
 	return doPostJSON[*SendP2PSmsResponse](ctx, s.client, "/v1/sms/p2p", req)
 }
 

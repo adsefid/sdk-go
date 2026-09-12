@@ -33,6 +33,9 @@ func TestEnumsAreForwardCompatible(t *testing.T) {
 		if got := unknown.String(); got == "" {
 			t.Error("an unknown code should still stringify")
 		}
+		if WebServiceResponseCodeInvalidMessageIDs != 2046 || WebServiceResponseCodeFileTooLarge != 2047 {
+			t.Error("v1.13 response-code values do not match the wire contract")
+		}
 	})
 
 	t.Run("line selector", func(t *testing.T) {

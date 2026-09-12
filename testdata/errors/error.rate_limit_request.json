@@ -2,7 +2,6 @@
   "status": "error",
   "error": {
     "code": 2036,
-    "name": "REQUEST_LIMIT_REACHED",
-    "details": null
+    "name": "REQUEST_LIMIT_REACHED"
   }
 }

@@ -5,7 +5,7 @@
     "message_id": "0195ff9f-f9cf-7d62-a49e-2ca4db9a90f2",
     "status": 1000,
     "local_id": "otp-90001",
-    "line_number": "3000xxxx",
+    "line_number": "983000XXX",
     "template_id": "otp_login",
     "send_time": "2026-04-04T11:40:00+03:30",
     "expiry_date": "2026-04-04T12:00:00+03:30",

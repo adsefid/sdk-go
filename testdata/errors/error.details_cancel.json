@@ -4,10 +4,16 @@
     "code": 2029,
     "name": "INVALID_LOCAL_IDS",
     "details": {
-      "local_ids": [
-        "order-10001",
-        "order-10002"
-      ]
+      "errors": {
+        "order-10001": {
+          "code": 2029,
+          "name": "INVALID_LOCAL_IDS"
+        },
+        "order-10002": {
+          "code": 2029,
+          "name": "INVALID_LOCAL_IDS"
+        }
+      }
     }
   }
 }

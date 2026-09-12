@@ -2,7 +2,6 @@ package adsefid
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"testing"
@@ -91,7 +90,7 @@ func TestErrorMapping(t *testing.T) {
 				t.Errorf("IsRateLimitError = %v, want %v", ok, tc.wantRateLimit)
 			}
 
-			if tc.wantDetails && len(apiErr.Details) == 0 {
+			if tc.wantDetails && apiErr.Details == nil {
 				t.Error("expected details to survive")
 			}
 		})
@@ -198,11 +197,10 @@ func TestErrorHierarchy(t *testing.T) {
 	}
 }
 
-// TestErrorDetailsShapes: Details is deliberately left as raw JSON because the
-// service uses a different shape per endpoint. Decode each real shape to prove
-// none of them is lost or coerced on the way through.
+// TestErrorDetailsShapes covers the structured details shared by every
+// endpoint family.
 func TestErrorDetailsShapes(t *testing.T) {
-	t.Run("validation errors are a field to message map under \"errors\"", func(t *testing.T) {
+	t.Run("validation field errors", func(t *testing.T) {
 		client, _ := newTestClient(t, jsonHandler(
 			http.StatusBadRequest, mustFixture(t, "errors/error.invalid_parameter.json")))
 
@@ -213,22 +211,15 @@ func TestErrorDetailsShapes(t *testing.T) {
 			t.Fatalf("expected an *APIError, got %#v", err)
 		}
 
-		var details struct {
-			Errors map[string]string `json:"errors"`
+		if apiErr.Details == nil {
+			t.Fatal("expected details")
 		}
-		if err := json.Unmarshal(apiErr.Details, &details); err != nil {
-			t.Fatalf("decode details: %v", err)
-		}
-		// Values are plain strings, one per field — not arrays.
-		if got := details.Errors["take"]; got != "invalid value for take" {
-			t.Errorf("errors[take] = %q", got)
-		}
-		if got := details.Errors["state"]; got != "invalid value for state" {
-			t.Errorf("errors[state] = %q", got)
+		if got := apiErr.Details.Errors["take"]; got.Code != WebServiceResponseCodeInvalidParameter || got.Name != "INVALID_PARAMETER" {
+			t.Errorf("errors[take] = %+v", got)
 		}
 	})
 
-	t.Run("single-send errors are a flat field to message map", func(t *testing.T) {
+	t.Run("single-send field errors", func(t *testing.T) {
 		client, _ := newTestClient(t, jsonHandler(
 			http.StatusBadRequest, mustFixture(t, "errors/error.details_single.json")))
 
@@ -239,12 +230,11 @@ func TestErrorDetailsShapes(t *testing.T) {
 			t.Fatalf("expected an *APIError, got %#v", err)
 		}
 
-		var details map[string]string
-		if err := json.Unmarshal(apiErr.Details, &details); err != nil {
-			t.Fatalf("decode details: %v", err)
+		if apiErr.Details == nil {
+			t.Fatal("expected details")
 		}
-		if got := details["receptor"]; got != "invalid value for receptor" {
-			t.Errorf("details[receptor] = %q", got)
+		if got := apiErr.Details.Errors["receptor"]; got.Code != WebServiceResponseCodeInvalidReceptor {
+			t.Errorf("errors[receptor] = %+v", got)
 		}
 	})
 
@@ -259,33 +249,23 @@ func TestErrorDetailsShapes(t *testing.T) {
 			t.Fatalf("expected an *APIError, got %#v", err)
 		}
 
-		var details struct {
-			Errors   map[string]string `json:"errors"`
-			Messages []struct {
-				Index  int               `json:"index"`
-				Errors map[string]string `json:"errors"`
-			} `json:"messages"`
+		if apiErr.Details == nil {
+			t.Fatal("expected details")
 		}
-		if err := json.Unmarshal(apiErr.Details, &details); err != nil {
-			t.Fatalf("decode details: %v", err)
-		}
-		if details.Errors["line_number"] == "" {
-			t.Error("request-level errors should survive")
-		}
-		if len(details.Messages) != 2 {
-			t.Fatalf("expected 2 per-item errors, got %d", len(details.Messages))
+		if len(apiErr.Details.Items) != 2 {
+			t.Fatalf("expected 2 per-item errors, got %d", len(apiErr.Details.Items))
 		}
 		// The index says which item of YOUR array failed; it is not positional
 		// in this list, so a gap (0 then 2) is normal.
-		if details.Messages[1].Index != 2 {
-			t.Errorf("second item index = %d, want 2", details.Messages[1].Index)
+		if apiErr.Details.Items[1].Index != 2 {
+			t.Errorf("second item index = %d, want 2", apiErr.Details.Items[1].Index)
 		}
-		if details.Messages[1].Errors["local_id"] == "" {
-			t.Error("per-item errors should survive")
+		if got := apiErr.Details.Items[1].Errors["local_id"]; got.Code != WebServiceResponseCodeDuplicateLocalID {
+			t.Errorf("local_id error = %+v", got)
 		}
 	})
 
-	t.Run("cancel errors are the one shape whose values are arrays", func(t *testing.T) {
+	t.Run("cancel errors keyed by rejected id", func(t *testing.T) {
 		client, _ := newTestClient(t, jsonHandler(
 			http.StatusBadRequest, mustFixture(t, "errors/error.details_cancel.json")))
 
@@ -296,12 +276,25 @@ func TestErrorDetailsShapes(t *testing.T) {
 			t.Fatalf("expected an *APIError, got %#v", err)
 		}
 
-		var details map[string][]string
-		if err := json.Unmarshal(apiErr.Details, &details); err != nil {
-			t.Fatalf("decode details: %v", err)
+		if apiErr.Details == nil || len(apiErr.Details.Errors) != 2 {
+			t.Fatalf("details = %+v, want 2 errors", apiErr.Details)
 		}
-		if len(details["local_ids"]) != 2 {
-			t.Errorf("details[local_ids] = %v, want 2 entries", details["local_ids"])
+		if got := apiErr.Details.Errors["order-10001"]; got.Code != WebServiceResponseCodeInvalidLocalIDs {
+			t.Errorf("errors[order-10001] = %+v", got)
+		}
+	})
+
+	t.Run("unknown nested code keeps its integer", func(t *testing.T) {
+		body := []byte(`{"status":"error","error":{"code":2024,"name":"INVALID_PARAMETER","details":{"errors":{"future":{"code":2999,"name":"FUTURE_CODE"}}}}}`)
+		client, _ := newTestClient(t, jsonHandler(http.StatusBadRequest, body))
+
+		_, err := client.User.GetInfo(context.Background())
+		var apiErr *APIError
+		if !errors.As(err, &apiErr) || apiErr.Details == nil {
+			t.Fatalf("expected typed API details, got %#v", err)
+		}
+		if got := apiErr.Details.Errors["future"].Code; got != WebServiceResponseCode(2999) {
+			t.Errorf("code = %d, want 2999", got)
 		}
 	})
 }

@@ -78,7 +78,7 @@ func TestSMSRequestBuilding(t *testing.T) {
 			fixture: "envelopes/sms.send_bulk.partial_success.json",
 			call: func(c *Client) error {
 				_, err := c.SMS.SendBulk(context.Background(), &SendBulkSmsRequest{
-					Receptors:  []BulkSmsReceptor{{Receptor: "98912xxxxxxx"}, {Receptor: "98993xxxxxxx"}},
+					Receptors:  []BulkSmsReceptor{{Receptor: "98912xxxxxxx"}, {Receptor: "", LocalID: ptr("-bad")}},
 					Message:    "bulk",
 					LineNumber: "3000xxxx",
 				})
@@ -100,7 +100,7 @@ func TestSMSRequestBuilding(t *testing.T) {
 			fixture: "envelopes/sms.send_p2p.partial_success.json",
 			call: func(c *Client) error {
 				_, err := c.SMS.SendP2P(context.Background(), &SendP2PSmsRequest{
-					Messages:   []P2PSmsMessage{{Receptor: "98912xxxxxxx", Message: "a"}},
+					Messages:   []P2PSmsMessage{{Receptor: "98912xxxxxxx", Message: "a"}, {Receptor: "", Message: ""}},
 					LineNumber: "3000xxxx",
 				})
 				return err
@@ -108,7 +108,8 @@ func TestSMSRequestBuilding(t *testing.T) {
 			wantMethod: http.MethodPost,
 			wantPath:   "/v1/sms/p2p",
 			assertBody: func(t *testing.T, body map[string]any) {
-				if _, ok := body["messages"].([]any); !ok {
+				messages, ok := body["messages"].([]any)
+				if !ok || len(messages) != 2 {
 					t.Errorf("expected a messages array, got %v", body["messages"])
 				}
 			},

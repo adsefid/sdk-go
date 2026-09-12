@@ -121,6 +121,8 @@ Monetary response fields (`Cost`, `TotalCost`, and `CreditLeft`) use `float64` a
 
 Every method takes a `context.Context` as its first argument and returns `(T, error)` or
 `(*T, error)` — there are no panics for expected failure conditions.
+Bulk/P2P item values are sent unchanged so the API can accept or reject them independently; only
+request-level fields are prevalidated.
 
 ## Error handling
 
@@ -130,8 +132,8 @@ This SDK never panics for expected failures. It defines four error types, all im
 - **`*adsefid.ValidationError`** — a client-side pre-flight check failed (bad input shape, a
   message too long, a malformed `local_id`, etc.). No network call was made.
 - **`*adsefid.APIError`** — the API returned a non-success envelope, or a non-2xx HTTP status.
-  Carries `Code adsefid.WebServiceResponseCode`, `Name string`, `HTTPStatusCode int`, and
-  `Details json.RawMessage` (endpoint-specific, decode defensively — see below).
+  Carries `Code adsefid.WebServiceResponseCode`, `Name string`, `HTTPStatusCode int`, and optional
+  typed `Details *adsefid.APIErrorDetails`.
 - **`*adsefid.RateLimitError`** — embeds `*adsefid.APIError` for the rate-limit-shaped failures
   (`WebServiceResponseCode` 2035 `MessageLimitReached`, 2036 `RequestLimitReached`, or a bare HTTP
   429). It unwraps to the embedded `*APIError`, so `errors.As` also matches that.
@@ -168,17 +170,9 @@ if err != nil {
 }
 ```
 
-`details` is not one shape — the service picks one per endpoint:
-
-| When | Shape | Example |
-|---|---|---|
-| Request validation (`2024 INVALID_PARAMETER`) | `{"errors": {field: message}}` — snake_case field paths, **string** values | `{"errors":{"take":"invalid value for take"}}` |
-| Single send | `{field: message}` — flat, no wrapper | `{"receptor":"invalid value for receptor"}` |
-| Bulk / P2P | `{"errors": {...}, "messages": [{"index": n, "errors": {...}}]}` — `index` is the position in *your* array, so gaps are normal | `{"errors":{},"messages":[{"index":2,"errors":{"local_id":"invalid value for local_id"}}]}` |
-| Cancel | `{field: [value, ...]}` — the one shape whose values are **arrays** | `{"local_ids":["order-10001"]}` |
-| Anything else | absent or `null` | |
-
-Decode it defensively for the endpoint you called rather than assuming a single shape.
+`APIError.Details` contains optional `Errors map[string]APIFieldError` for field errors (and rejected
+cancel IDs), plus optional `Items []APIItemError` for indexed bulk/P2P errors. Named integer codes
+preserve unknown future values.
 
 ### Rate limits
 
@@ -195,9 +189,10 @@ degrade gracefully (e.g. `WebServiceResponseCode(9999)`) rather than failing to 
 - **`WebServiceMessageStatus`** (int, 1000-1999): the status of a single message — e.g.
   `WebServiceMessageStatusDelivered`, `WebServiceMessageStatusBlacklisted`,
   `WebServiceMessageStatusUnknown`. See `enums.go` for the full set of 18 values.
-- **`WebServiceResponseCode`** (int, 2000-2045): the API's error codes — e.g.
+- **`WebServiceResponseCode`** (int, 2000-2047): the API's error codes — e.g.
   `WebServiceResponseCodeInvalidAPIKey`, `WebServiceResponseCodeNotEnoughCredit`,
-  `WebServiceResponseCodeMessageLimitReached`. See `enums.go` for the full set of 46 values.
+  `WebServiceResponseCodeMessageLimitReached`, `WebServiceResponseCodeInvalidMessageIDs`, and
+  `WebServiceResponseCodeFileTooLarge`. See `enums.go` for the full set of 48 values.
 - **`TemplateState`** (string): `TemplateStatePendingApproval`, `TemplateStateApproved`,
   `TemplateStateRejected`.
 - **`TemplateParameterType`** (string): `TemplateParameterTypeString`, `TemplateParameterTypeNumber`.
@@ -294,6 +289,9 @@ _, err = client.Messenger.SendSingle(ctx, &adsefid.SendSingleMessengerRequest{
 	FileID:   &uploaded.FileID,
 })
 ```
+
+The service enforces its documented MIME allowlist and 15 MB limit. Oversized uploads return
+`WebServiceResponseCodeFileTooLarge` (2047, HTTP 413).
 
 ## Webhooks
 
@@ -414,7 +412,7 @@ Each directory under `examples/` is a standalone `package main`. Run one with `g
 
 ```sh
 export ADSEFID_API_KEY=...
-export ADSEFID_LINE_NUMBER=3000xxxx
+export ADSEFID_LINE_NUMBER=983000XXX
 
 go run ./examples/account          # account info, lines, profiles, templates; client configuration
 go run ./examples/quickstart       # send one SMS, with full error triage
@@ -432,7 +430,7 @@ go run ./examples/webhookserver    # verify and dispatch inbound webhooks
 This SDK follows Semantic Versioning independently of the API documentation.
 
 - SDK version: **`0.4.0`** (repository tag `v0.4.0`)
-- Verified API documentation: **`v1.12.0`**
+- Verified API documentation: **`v1.13.0`**
 
 SDK releases use `v<SDK_VERSION>` tags. The two version numbers move independently. A future major
 version `v2` must also change the module path to `github.com/adsefid/sdk-go/v2`.
