@@ -32,6 +32,9 @@ jobs:
       - run: gofmt -l .
 
       - uses: golangci/golangci-lint-action@v9
+        env:
+          # This linter cannot read Go 1.27.2 export data.
+          GOTOOLCHAIN: go1.27.0
         with:
           version: v2.13.2
 
