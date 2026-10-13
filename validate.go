@@ -14,6 +14,7 @@ const (
 	maxSmsMessageLength       = 900
 	maxMessengerMessageLength = 4000
 	maxCombinedIDsLookup      = 2000
+	maxCombinedIDsCancel      = 2000
 	minReceivedCount          = 1
 	maxReceivedCount          = 499
 	minTemplatesTake          = 1

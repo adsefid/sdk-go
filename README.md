@@ -4,7 +4,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/adsefid/sdk-go.svg)](https://pkg.go.dev/github.com/adsefid/sdk-go)
 
 A Go client SDK for the [adsefid.com](https://adsefid.com) SMS Web Service REST API: send single,
-bulk, P2P, and templated SMS and Messenger messages; check delivery status; cancel scheduled
+bulk, P2P, and templated SMS and Messenger messages; check delivery status; cancel eligible unrefunded
 messages; fetch inbound SMS; look up account info, lines, profiles, and templates; and verify
 inbound webhook deliveries.
 
@@ -105,13 +105,13 @@ Monetary response fields (`Cost`, `TotalCost`, and `CreditLeft`) use `float64` a
 | `client.SMS` | `SendP2P(ctx, *SendP2PSmsRequest)` | `POST /v1/sms/p2p` | Partial success is a normal typed return |
 | `client.SMS` | `SendTemplate(ctx, *SendTemplateSmsRequest)` | `POST /v1/sms/template` | |
 | `client.SMS` | `GetStatus(ctx, *GetSmsStatusRequest)` | `GET /v1/sms/status` | |
-| `client.SMS` | `Cancel(ctx, *CancelSmsRequest)` | `POST /v1/sms/cancel` | |
+| `client.SMS` | `Cancel(ctx, *CancelSmsRequest)` | `POST /v1/sms/cancel` | Awaiting approval, queued, or scheduled; no refund; max 2,000 distinct IDs combined |
 | `client.SMS` | `GetReceived(ctx, *GetReceivedSmsRequest)` | `GET /v1/sms/receive` | |
 | `client.Messenger` | `SendSingle(ctx, *SendSingleMessengerRequest)` | `POST /v1/messenger/single` | |
 | `client.Messenger` | `SendBulk(ctx, *SendBulkMessengerRequest)` | `POST /v1/messenger/bulk` | Partial success is a normal typed return |
 | `client.Messenger` | `SendP2P(ctx, *SendP2PMessengerRequest)` | `POST /v1/messenger/p2p` | Partial success is a normal typed return |
 | `client.Messenger` | `UploadFile(ctx, io.Reader, fileName, contentType string)` | `POST /v1/messenger/file` | Caller owns the reader |
-| `client.Messenger` | `Cancel(ctx, *CancelMessengerRequest)` | `POST /v1/messenger/cancel` | |
+| `client.Messenger` | `Cancel(ctx, *CancelMessengerRequest)` | `POST /v1/messenger/cancel` | Awaiting approval, queued, or scheduled; no refund; max 2,000 distinct IDs combined |
 | `client.Messenger` | `SendTemplate(ctx, *SendTemplateMessengerRequest)` | `POST /v1/messenger/template` | |
 | `client.Messenger` | `GetStatus(ctx, *GetMessengerStatusRequest)` | `GET /v1/messenger/status` | |
 | `client.User` | `GetInfo(ctx)` | `GET /v1/user/info` | |
@@ -430,7 +430,7 @@ go run ./examples/webhookserver    # verify and dispatch inbound webhooks
 This SDK follows Semantic Versioning independently of the API documentation.
 
 - SDK version: **`0.5.0`** (repository tag `v0.5.0`)
-- Verified API documentation: **`v1.13.0`**
+- Verified API documentation: **`v1.14.0`**
 
 SDK releases use `v<SDK_VERSION>` tags. The two version numbers move independently. A future major
 version `v2` must also change the module path to `github.com/adsefid/sdk-go/v2`.
