@@ -300,13 +300,16 @@ func (m *MessengerService) UploadFile(ctx context.Context, r io.Reader, fileName
 	return doPostMultipart[*UploadMessengerFileResponse](ctx, m.client, "/v1/messenger/file", fileName, contentType, r)
 }
 
-// Cancel cancels previously scheduled messages by message ID and/or local ID.
-// At least one of req.MessageIDs or req.LocalIDs must be non-empty.
+// Cancel cancels eligible messages by message ID or local ID.
+// Requires at least one ID, with at most 2000 distinct IDs across both lists.
 func (m *MessengerService) Cancel(ctx context.Context, req *CancelMessengerRequest) (*CancelMessengerResponse, error) {
 	if err := requireRequest(req); err != nil {
 		return nil, err
 	}
 	if err := requireAtLeastOne(len(req.MessageIDs) > 0, len(req.LocalIDs) > 0, "at least one of MessageIDs or LocalIDs must be non-empty"); err != nil {
+		return nil, err
+	}
+	if err := requireCombinedCountAtMost(distinctCount(req.MessageIDs), distinctCount(req.LocalIDs), maxCombinedIDsCancel, "the combined distinct count of MessageIDs and LocalIDs must not exceed 2000"); err != nil {
 		return nil, err
 	}
 

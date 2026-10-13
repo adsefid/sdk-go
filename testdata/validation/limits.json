@@ -3,6 +3,7 @@
   "sms_message_max_length": 900,
   "messenger_message_max_length": 4000,
   "combined_status_ids_max": 2000,
+  "combined_cancel_ids_max": 2000,
   "receive_count_min": 1,
   "receive_count_max": 499,
   "templates_take_min": 1,
