@@ -2,6 +2,7 @@ package adsefid
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"strconv"
 	"time"
@@ -31,7 +32,7 @@ type SendSingleSmsResponse struct {
 	Status       WebServiceMessageStatus `json:"status"`
 	LineNumber   string                  `json:"line_number"`
 	LineSelector LineSelector            `json:"line_selector"`
-	Cost         float64                 `json:"cost"`
+	Cost         json.Number             `json:"cost"`
 	Receptor     string                  `json:"receptor"`
 	SendTime     *time.Time              `json:"send_time"`
 	MessageID    string                  `json:"message_id"`
@@ -62,12 +63,12 @@ type SendBulkSmsRequest struct {
 // instead of a WebServiceMessageStatus (1000-1999). MessageStatus and
 // ErrorCode split it into the typed enum for its range.
 type BulkSmsReceptorResult struct {
-	MessageID *string `json:"message_id"`
-	Receptor  string  `json:"receptor"`
-	LocalID   *string `json:"local_id"`
-	Status    int     `json:"status"`
-	Hide      bool    `json:"hide"`
-	Cost      float64 `json:"cost"`
+	MessageID *string     `json:"message_id"`
+	Receptor  string      `json:"receptor"`
+	LocalID   *string     `json:"local_id"`
+	Status    int         `json:"status"`
+	Hide      bool        `json:"hide"`
+	Cost      json.Number `json:"cost"`
 }
 
 // MessageStatus returns the typed message status when Status is in
@@ -94,7 +95,7 @@ type SendBulkSmsResponse struct {
 	LineSelector LineSelector            `json:"line_selector"`
 	Counts       map[string]int          `json:"counts"`
 	TotalCount   int                     `json:"total_count"`
-	TotalCost    float64                 `json:"total_cost"`
+	TotalCost    json.Number             `json:"total_cost"`
 }
 
 // P2PSmsMessage is one entry of SendP2PSmsRequest.Messages.
@@ -117,14 +118,14 @@ type SendP2PSmsRequest struct {
 //
 // Status is a plain int; see BulkSmsReceptorResult.Status for why.
 type P2PSmsMessageResult struct {
-	MessageID    *string `json:"message_id"`
-	Receptor     string  `json:"receptor"`
-	Status       int     `json:"status"`
-	LocalID      *string `json:"local_id"`
-	Message      string  `json:"message"`
-	Hide         bool    `json:"hide"`
-	SegmentCount int     `json:"segment_count"`
-	Cost         float64 `json:"cost"`
+	MessageID    *string     `json:"message_id"`
+	Receptor     string      `json:"receptor"`
+	Status       int         `json:"status"`
+	LocalID      *string     `json:"local_id"`
+	Message      string      `json:"message"`
+	Hide         bool        `json:"hide"`
+	SegmentCount int         `json:"segment_count"`
+	Cost         json.Number `json:"cost"`
 }
 
 // MessageStatus returns the typed message status when Status is in
@@ -145,7 +146,7 @@ type SendP2PSmsResponse struct {
 	SendTime     *time.Time            `json:"send_time"`
 	LineNumber   string                `json:"line_number"`
 	LineSelector LineSelector          `json:"line_selector"`
-	TotalCost    float64               `json:"total_cost"`
+	TotalCost    json.Number           `json:"total_cost"`
 	Counts       map[string]int        `json:"counts"`
 }
 
@@ -171,7 +172,7 @@ type SendTemplateSmsResponse struct {
 	SendTime     *time.Time                        `json:"send_time"`
 	ExpiryDate   *time.Time                        `json:"expiry_date"`
 	LineSelector LineSelector                      `json:"line_selector"`
-	Cost         float64                           `json:"cost"`
+	Cost         json.Number                       `json:"cost"`
 	Receptor     string                            `json:"receptor"`
 	Message      string                            `json:"message"`
 	SegmentCount int                               `json:"segment_count"`
@@ -311,6 +312,9 @@ func (s *SMSService) SendTemplate(ctx context.Context, req *SendTemplateSmsReque
 		return nil, err
 	}
 	if err := requireNonEmpty(req.TemplateID, "TemplateID"); err != nil {
+		return nil, err
+	}
+	if err := validateTemplateParameters(req.Parameters, "Parameters"); err != nil {
 		return nil, err
 	}
 	if err := requireNonEmpty(req.Receptor, "Receptor"); err != nil {

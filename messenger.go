@@ -2,6 +2,7 @@ package adsefid
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"time"
 )
@@ -31,7 +32,7 @@ type SendSingleMessengerResponse struct {
 	Receptor  string                  `json:"receptor"`
 	LocalID   *string                 `json:"local_id"`
 	Hide      bool                    `json:"hide"`
-	Cost      float64                 `json:"cost"`
+	Cost      json.Number             `json:"cost"`
 	SendTime  *time.Time              `json:"send_time"`
 	Profile   string                  `json:"profile"`
 	Messenger string                  `json:"messenger"`
@@ -59,12 +60,12 @@ type SendBulkMessengerRequest struct {
 // failed per-receptor result can carry a WebServiceResponseCode (2000+)
 // instead of a WebServiceMessageStatus (1000-1999).
 type BulkMessengerReceptorResult struct {
-	MessageID *string `json:"message_id"`
-	Receptor  string  `json:"receptor"`
-	LocalID   *string `json:"local_id"`
-	Hide      bool    `json:"hide"`
-	Status    int     `json:"status"`
-	Cost      float64 `json:"cost"`
+	MessageID *string     `json:"message_id"`
+	Receptor  string      `json:"receptor"`
+	LocalID   *string     `json:"local_id"`
+	Hide      bool        `json:"hide"`
+	Status    int         `json:"status"`
+	Cost      json.Number `json:"cost"`
 }
 
 // MessageStatus returns the typed message status when Status is in
@@ -87,7 +88,7 @@ type SendBulkMessengerResponse struct {
 	Message    string                        `json:"message"`
 	SendTime   *time.Time                    `json:"send_time"`
 	TotalCount int                           `json:"total_count"`
-	TotalCost  float64                       `json:"total_cost"`
+	TotalCost  json.Number                   `json:"total_cost"`
 	Counts     map[string]int                `json:"counts"`
 	Profile    string                        `json:"profile"`
 	Messenger  string                        `json:"messenger"`
@@ -113,13 +114,13 @@ type SendP2PMessengerRequest struct {
 //
 // Status is a plain int; see BulkMessengerReceptorResult.Status for why.
 type P2PMessengerReceptorResult struct {
-	MessageID *string `json:"message_id"`
-	Receptor  string  `json:"receptor"`
-	Message   string  `json:"message"`
-	LocalID   *string `json:"local_id"`
-	Hide      bool    `json:"hide"`
-	Status    int     `json:"status"`
-	Cost      float64 `json:"cost"`
+	MessageID *string     `json:"message_id"`
+	Receptor  string      `json:"receptor"`
+	Message   string      `json:"message"`
+	LocalID   *string     `json:"local_id"`
+	Hide      bool        `json:"hide"`
+	Status    int         `json:"status"`
+	Cost      json.Number `json:"cost"`
 }
 
 // MessageStatus returns the typed message status when Status is in
@@ -141,7 +142,7 @@ type SendP2PMessengerResponse struct {
 	Receptors  []P2PMessengerReceptorResult `json:"receptors"`
 	SendTime   *time.Time                   `json:"send_time"`
 	TotalCount int                          `json:"total_count"`
-	TotalCost  float64                      `json:"total_cost"`
+	TotalCost  json.Number                  `json:"total_cost"`
 	Counts     map[string]int               `json:"counts"`
 	Profile    string                       `json:"profile"`
 	Messenger  string                       `json:"messenger"`
@@ -166,7 +167,7 @@ type SendTemplateMessengerResponse struct {
 	TemplateID string                            `json:"template_id"`
 	SendTime   *time.Time                        `json:"send_time"`
 	ExpiryDate *time.Time                        `json:"expiry_date"`
-	Cost       float64                           `json:"cost"`
+	Cost       json.Number                       `json:"cost"`
 	Receptor   string                            `json:"receptor"`
 	Message    string                            `json:"message"`
 	Profile    string                            `json:"profile"`
@@ -323,6 +324,9 @@ func (m *MessengerService) SendTemplate(ctx context.Context, req *SendTemplateMe
 		return nil, err
 	}
 	if err := requireNonEmpty(req.TemplateID, "TemplateID"); err != nil {
+		return nil, err
+	}
+	if err := validateTemplateParameters(req.Parameters, "Parameters"); err != nil {
 		return nil, err
 	}
 	if err := requireNonEmpty(req.Receptor, "Receptor"); err != nil {

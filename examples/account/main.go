@@ -53,7 +53,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("get info: %v", err)
 	}
-	fmt.Printf("account %s (%s)\n  credit left: %g\n", info.Name, info.AccountStatus, info.CreditLeft)
+	fmt.Printf("account %s (%s)\n  credit left: %s\n", info.Name, info.AccountStatus, info.CreditLeft)
 	if info.Email != nil {
 		fmt.Printf("  email: %s\n", *info.Email)
 	}

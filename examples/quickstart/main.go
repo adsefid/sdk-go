@@ -30,10 +30,13 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	selector := adsefid.LineSelectorBulkServiceSendBased
 	resp, err := client.SMS.SendSingle(ctx, &adsefid.SendSingleSmsRequest{
-		Receptor:   "09120000000",
-		LineNumber: "3000000000",
-		Message:    "Hello from the adsefid.com Go SDK!",
+		Receptor:   "989120000000",
+		LineNumber: "983000",
+		// Required when your account has several lines with this number; see client.User.GetLines.
+		LineSelector: &selector,
+		Message:      "Hello from the adsefid.com Go SDK!",
 	})
 	if err != nil {
 		handleError(err)
@@ -41,7 +44,7 @@ func main() {
 	}
 
 	fmt.Printf(
-		"sent message %s to %s: status=%s, cost=%g, segments=%d\n",
+		"sent message %s to %s: status=%s, cost=%s, segments=%d\n",
 		resp.MessageID, resp.Receptor, resp.Status, resp.Cost, resp.SegmentCount,
 	)
 }

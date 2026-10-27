@@ -1,0 +1,21 @@
+{
+  "status": "success",
+  "data": {
+    "group_id": "01a17cc2-c388-7970-886c-96783356b00e",
+    "message_id": "01a17cc2-c388-716b-b0aa-4f1779d0780b",
+    "status": 1000,
+    "local_id": "order-10001",
+    "line_number": "983000",
+    "template_id": "otp",
+    "send_time": "2026-10-27T13:18:20.9211825+03:30",
+    "expiry_date": null,
+    "line_selector": 2,
+    "cost": 1129.0000000000000000,
+    "receptor": "+989120000000",
+    "message": "سلام کد ورود شما 001234",
+    "segment_count": 1,
+    "parameters": {
+      "otp_code": "001234"
+    }
+  }
+}

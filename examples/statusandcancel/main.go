@@ -17,11 +17,28 @@ import (
 	adsefid "github.com/adsefid/sdk-go"
 )
 
+var lineSelectors = map[string]adsefid.LineSelector{
+	"PromotionalSendBased":            adsefid.LineSelectorPromotionalSendBased,
+	"PromotionalDeliverBased":         adsefid.LineSelectorPromotionalDeliverBased,
+	"BulkServiceSendBased":            adsefid.LineSelectorBulkServiceSendBased,
+	"BulkServiceDeliverBased":         adsefid.LineSelectorBulkServiceDeliverBased,
+	"CustomerClubServiceSendBased":    adsefid.LineSelectorCustomerClubServiceSendBased,
+	"CustomerClubServiceDeliverBased": adsefid.LineSelectorCustomerClubServiceDeliverBased,
+}
+
 func main() {
 	apiKey := os.Getenv("ADSEFID_API_KEY")
 	lineNumber := os.Getenv("ADSEFID_LINE_NUMBER")
 	if apiKey == "" || lineNumber == "" {
 		log.Fatal("set ADSEFID_API_KEY and ADSEFID_LINE_NUMBER")
+	}
+	var lineSelector *adsefid.LineSelector
+	if name := os.Getenv("ADSEFID_LINE_SELECTOR"); name != "" { // needed when the number has several lines
+		selector, ok := lineSelectors[name]
+		if !ok {
+			log.Fatalf("ADSEFID_LINE_SELECTOR must be a LineSelector name such as BulkServiceSendBased, got %q", name)
+		}
+		lineSelector = &selector
 	}
 
 	client, err := adsefid.NewClient(apiKey, adsefid.WithTimeout(30*time.Second))
@@ -35,11 +52,12 @@ func main() {
 	// Schedule a message far enough ahead that there is something to cancel.
 	sendAt := time.Now().Add(2 * time.Hour)
 	sent, err := client.SMS.SendSingle(ctx, &adsefid.SendSingleSmsRequest{
-		Receptor:   "09120000000",
-		LineNumber: lineNumber,
-		Message:    "This one is scheduled, and about to be cancelled.",
-		SendTime:   &sendAt,
-		LocalID:    strPtr("demo-cancel-1"),
+		Receptor:     "09120000000",
+		LineNumber:   lineNumber,
+		LineSelector: lineSelector,
+		Message:      "This one is scheduled, and about to be cancelled.",
+		SendTime:     &sendAt,
+		LocalID:      strPtr("demo-cancel-1"),
 	})
 	if err != nil {
 		log.Fatalf("send: %v", err)

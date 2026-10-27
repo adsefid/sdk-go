@@ -89,21 +89,19 @@ func TestGetTemplates(t *testing.T) {
 		}
 	})
 
-	// The live service emits an undocumented parameter type the SDK does not
-	// model. Dropping the entry keeps the typed map honest instead of surfacing
-	// a value callers cannot switch on.
-	t.Run("drops undocumented parameter types", func(t *testing.T) {
+	// A parameter type with no constant must survive decoding.
+	t.Run("preserves unknown parameter types", func(t *testing.T) {
 		client, _ := newFixtureClient(t, "envelopes/user.get_templates.unknown_type.json")
 		got, err := client.User.GetTemplates(context.Background(), nil)
 		if err != nil {
 			t.Fatalf("GetTemplates: %v", err)
 		}
 		params := got.Items[0].Parameters
-		if _, present := params["link"]; present {
-			t.Error(`the undocumented "url" parameter type should have been dropped`)
+		if params["link"] != TemplateParameterType("future_type") {
+			t.Errorf("the unknown parameter type should be preserved, got %v", params)
 		}
-		if len(params) != 2 {
-			t.Errorf("expected the two documented parameters, got %v", params)
+		if len(params) != 3 {
+			t.Errorf("expected three parameters, got %v", params)
 		}
 	})
 

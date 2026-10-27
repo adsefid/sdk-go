@@ -4,10 +4,10 @@
     "items": [
       {
         "template_id": "link-notice",
-        "content": "Visit {link:url} for {OTPCode:string}",
+        "content": "Visit {link:future_type} for {OTPCode:string}",
         "parameters": {
           "OTPCode": "string",
-          "link": "url",
+          "link": "future_type",
           "amount": "number"
         },
         "state": "approved",

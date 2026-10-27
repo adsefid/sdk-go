@@ -62,8 +62,8 @@ type rawEnvelope struct {
 // hex-encoding step) and prefixed with "v1=". Verify strips that prefix and
 // compares using a constant-time comparison.
 //
-// It returns a *adsefid.WebhookVerificationError if the secret is not valid
-// Base64, the signature is invalid, the timestamp is missing, malformed, or too
+// It returns a *adsefid.WebhookVerificationError if the secret is empty or not
+// valid Base64, the signature is invalid, the timestamp is missing, malformed, or too
 // old (5 minutes by default; see WithMaxAge), or the body cannot be parsed as a
 // recognized event.
 func Verify(rawBody []byte, signatureHeader, timestampHeader, secret string, opts ...VerifyOption) (WebhookEvent, error) {
@@ -78,6 +78,10 @@ func Verify(rawBody []byte, signatureHeader, timestampHeader, secret string, opt
 // than as the Base64 string from the adsefid.com panel. Use it when you store
 // the decoded key yourself, for example in a secret manager.
 func VerifyWithKey(rawBody []byte, signatureHeader, timestampHeader string, key []byte, opts ...VerifyOption) (WebhookEvent, error) {
+	if len(key) == 0 {
+		return nil, &adsefid.WebhookVerificationError{Message: "webhook signing key is empty"}
+	}
+
 	cfg := &verifyConfig{maxAge: defaultMaxAge}
 	for _, opt := range opts {
 		opt(cfg)

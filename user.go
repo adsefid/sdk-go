@@ -17,12 +17,12 @@ type UserService struct {
 
 // UserInfo is the response body for UserService.GetInfo.
 type UserInfo struct {
-	Name          string  `json:"name"`
-	CompanyName   *string `json:"company_name"`
-	CreditLeft    float64 `json:"credit_left"`
-	Email         *string `json:"email"`
-	Phone         *string `json:"phone"`
-	AccountStatus string  `json:"account_status"`
+	Name          string      `json:"name"`
+	CompanyName   *string     `json:"company_name"`
+	CreditLeft    json.Number `json:"credit_left"`
+	Email         *string     `json:"email"`
+	Phone         *string     `json:"phone"`
+	AccountStatus string      `json:"account_status"`
 }
 
 // UserLine is one entry of the slice returned by UserService.GetLines.
@@ -49,36 +49,6 @@ type UserTemplate struct {
 	Description *string                          `json:"description"`
 	CreatedAt   time.Time                        `json:"created_at"`
 	UpdatedAt   time.Time                        `json:"updated_at"`
-}
-
-// UnmarshalJSON keeps the documented public parameter-type set forward-compatible
-// when the service emits an undocumented value.
-func (u *UserTemplate) UnmarshalJSON(data []byte) error {
-	var wire struct {
-		TemplateID  string            `json:"template_id"`
-		Content     string            `json:"content"`
-		Parameters  map[string]string `json:"parameters"`
-		State       TemplateState     `json:"state"`
-		Description *string           `json:"description"`
-		CreatedAt   time.Time         `json:"created_at"`
-		UpdatedAt   time.Time         `json:"updated_at"`
-	}
-	if err := json.Unmarshal(data, &wire); err != nil {
-		return err
-	}
-
-	parameters := make(map[string]TemplateParameterType, len(wire.Parameters))
-	for name, value := range wire.Parameters {
-		typeValue := TemplateParameterType(value)
-		if typeValue == TemplateParameterTypeString || typeValue == TemplateParameterTypeNumber {
-			parameters[name] = typeValue
-		}
-	}
-	*u = UserTemplate{
-		TemplateID: wire.TemplateID, Content: wire.Content, Parameters: parameters,
-		State: wire.State, Description: wire.Description, CreatedAt: wire.CreatedAt, UpdatedAt: wire.UpdatedAt,
-	}
-	return nil
 }
 
 // GetUserTemplatesRequest is the query for UserService.GetTemplates. Every

@@ -17,11 +17,28 @@ import (
 	adsefid "github.com/adsefid/sdk-go"
 )
 
+var lineSelectors = map[string]adsefid.LineSelector{
+	"PromotionalSendBased":            adsefid.LineSelectorPromotionalSendBased,
+	"PromotionalDeliverBased":         adsefid.LineSelectorPromotionalDeliverBased,
+	"BulkServiceSendBased":            adsefid.LineSelectorBulkServiceSendBased,
+	"BulkServiceDeliverBased":         adsefid.LineSelectorBulkServiceDeliverBased,
+	"CustomerClubServiceSendBased":    adsefid.LineSelectorCustomerClubServiceSendBased,
+	"CustomerClubServiceDeliverBased": adsefid.LineSelectorCustomerClubServiceDeliverBased,
+}
+
 func main() {
 	apiKey := os.Getenv("ADSEFID_API_KEY")
 	lineNumber := os.Getenv("ADSEFID_LINE_NUMBER")
 	if apiKey == "" || lineNumber == "" {
 		log.Fatal("set ADSEFID_API_KEY and ADSEFID_LINE_NUMBER")
+	}
+	var lineSelector *adsefid.LineSelector
+	if name := os.Getenv("ADSEFID_LINE_SELECTOR"); name != "" { // needed when the number has several lines
+		selector, ok := lineSelectors[name]
+		if !ok {
+			log.Fatalf("ADSEFID_LINE_SELECTOR must be a LineSelector name such as BulkServiceSendBased, got %q", name)
+		}
+		lineSelector = &selector
 	}
 
 	client, err := adsefid.NewClient(apiKey, adsefid.WithTimeout(30*time.Second))
@@ -32,15 +49,16 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	sendBulk(ctx, client, lineNumber)
-	sendP2P(ctx, client, lineNumber)
+	sendBulk(ctx, client, lineNumber, lineSelector)
+	sendP2P(ctx, client, lineNumber, lineSelector)
 }
 
 // sendBulk sends one identical message to many receptors.
-func sendBulk(ctx context.Context, client *adsefid.Client, lineNumber string) {
+func sendBulk(ctx context.Context, client *adsefid.Client, lineNumber string, lineSelector *adsefid.LineSelector) {
 	resp, err := client.SMS.SendBulk(ctx, &adsefid.SendBulkSmsRequest{
-		LineNumber: lineNumber,
-		Message:    "Scheduled maintenance tonight from 01:00 to 03:00.",
+		LineNumber:   lineNumber,
+		LineSelector: lineSelector,
+		Message:      "Scheduled maintenance tonight from 01:00 to 03:00.",
 		Receptors: []adsefid.BulkSmsReceptor{
 			// local_id is your own idempotency handle: it comes back on the
 			// response and on the status webhook, so you can match a delivery
@@ -53,7 +71,7 @@ func sendBulk(ctx context.Context, client *adsefid.Client, lineNumber string) {
 		log.Fatalf("bulk send failed outright: %v", err)
 	}
 
-	fmt.Printf("\nbulk group %s: %d receptors, total cost %g\n", resp.GroupID, resp.TotalCount, resp.TotalCost)
+	fmt.Printf("\nbulk group %s: %d receptors, total cost %s\n", resp.GroupID, resp.TotalCount, resp.TotalCost)
 	for _, item := range resp.Receptors {
 		report(item.Receptor, item.LocalID, item.Status, item.MessageID)
 	}
@@ -61,9 +79,10 @@ func sendBulk(ctx context.Context, client *adsefid.Client, lineNumber string) {
 }
 
 // sendP2P sends a different message to each receptor in one request.
-func sendP2P(ctx context.Context, client *adsefid.Client, lineNumber string) {
+func sendP2P(ctx context.Context, client *adsefid.Client, lineNumber string, lineSelector *adsefid.LineSelector) {
 	resp, err := client.SMS.SendP2P(ctx, &adsefid.SendP2PSmsRequest{
-		LineNumber: lineNumber,
+		LineNumber:   lineNumber,
+		LineSelector: lineSelector,
 		Messages: []adsefid.P2PSmsMessage{
 			{Receptor: "09120000000", Message: "Hi Ali, your order #1001 shipped.", LocalID: strPtr("ship-1001")},
 			{Receptor: "09120000001", Message: "Hi Reza, your order #1002 shipped.", LocalID: strPtr("ship-1002")},
@@ -73,7 +92,7 @@ func sendP2P(ctx context.Context, client *adsefid.Client, lineNumber string) {
 		log.Fatalf("p2p send failed outright: %v", err)
 	}
 
-	fmt.Printf("\np2p group %s: total cost %g\n", resp.GroupID, resp.TotalCost)
+	fmt.Printf("\np2p group %s: total cost %s\n", resp.GroupID, resp.TotalCost)
 	for _, item := range resp.Messages {
 		report(item.Receptor, item.LocalID, item.Status, item.MessageID)
 	}

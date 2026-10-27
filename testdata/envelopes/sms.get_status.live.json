@@ -1,0 +1,15 @@
+{
+  "status": "success",
+  "data": {
+    "receptors": [
+      {
+        "message_id": "01a17cc2-3b06-7284-ab10-e865f68756b3",
+        "local_id": "order-10001",
+        "status": 1003,
+        "receptor": "+989120000000",
+        "send_time": "2026-10-27T10:17:41+00:00",
+        "delivery_time": "2026-10-27T09:48:26.9538204+00:00"
+      }
+    ]
+  }
+}
