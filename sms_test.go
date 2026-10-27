@@ -2,8 +2,10 @@ package adsefid
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 )
@@ -235,7 +237,7 @@ func TestSMSResponseParsing(t *testing.T) {
 		if got.Status != WebServiceMessageStatusScheduled {
 			t.Errorf("status = %v, want scheduled(1000)", got.Status)
 		}
-		if got.SegmentCount != 1 || got.Cost != 120 {
+		if got.SegmentCount != 1 || got.Cost != "120" {
 			t.Errorf("segment/cost = %d/%v", got.SegmentCount, got.Cost)
 		}
 		if got.SendTime == nil {
@@ -462,12 +464,16 @@ func TestGetStatusCombinedIDLimit(t *testing.T) {
 		atLimit[i] = "id-" + itoa(i)
 	}
 
+	// 2000 distinct IDs pass the count check but cannot fit in a GET URL, so
+	// the call is refused for its length, not its count.
 	client, requests := newFixtureClient(t, "envelopes/sms.get_status.success.json")
-	if _, err := client.SMS.GetStatus(context.Background(), &GetSmsStatusRequest{MessageIDs: atLimit}); err != nil {
-		t.Fatalf("exactly 2000 distinct ids should be accepted: %v", err)
+	_, err := client.SMS.GetStatus(context.Background(), &GetSmsStatusRequest{MessageIDs: atLimit})
+	var verr *ValidationError
+	if !errors.As(err, &verr) || !strings.Contains(verr.Message, "characters long") {
+		t.Fatalf("2000 ids should fail the URL length check, got %v", err)
 	}
-	if len(*requests) != 1 {
-		t.Fatalf("expected the call to reach the network")
+	if len(*requests) != 0 {
+		t.Fatalf("the call must not reach the network")
 	}
 
 	overLimit := append(append([]string{}, atLimit...), "one-too-many")

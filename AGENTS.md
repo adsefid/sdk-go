@@ -22,14 +22,25 @@ over an ambiguous doc reading:
   literal string "{timestamp}.{raw_body}", and the raw digest bytes are Base64-encoded directly —
   there is no intermediate hex-encoding step, even though a literal reading of some spec
   pseudo-code can suggest one. See `webhooks/verify.go`.
-- `TemplateParameterType` has an undocumented third value in the wild. The documented, supported
-  public set is {string, number}. The live API has been observed to also emit a value for some
-  templates that isn't documented; this SDK intentionally models only the two documented values —
-  do not add support for it without first confirming it against current, documented API behavior.
-  See `enums.go`.
+- The documented `TemplateParameterType` set is {string, number}, and only those two get constants.
+  Any other value is preserved as a plain string in `UserTemplate.Parameters` rather than dropped; add a
+  constant only for a value the documentation lists. See `enums.go`.
 - `error.details` uses the shared typed `APIErrorDetails` shape: optional `Errors` maps field names
   (or rejected cancel IDs) to `APIFieldError`, and optional `Items` carries indexed `APIItemError`
   entries. Named integer codes preserve unknown future values.
+- Monetary response fields (`Cost`, `TotalCost`, `CreditLeft`) are `json.Number` so the exact wire
+  decimal survives. Do not change them to `float64`.
+- File uploads are capped at `MaxMessengerFileBytes` (15 MiB, inclusive) and response bodies at 16 MiB;
+  the default `*http.Client` is built on a cloned `http.DefaultTransport` with a larger idle pool.
+- An empty webhook signing key is rejected: an empty HMAC key signs anything.
+- `line_selector` is required when the account has two or more lines with the same number. Without
+  it the service answers `LINE_NOT_FOUND` (2002), even for a number the account owns.
+- GET requests are capped at 8,000 characters of path and query. The service's proxy answers an HTML
+  HTTP 414 above 8 KiB, so the documented 2,000-ID status lookup cannot be sent as one GET (about 200
+  IDs fit). The SDK joins IDs with literal commas, drops duplicates, and refuses an oversized GET
+  locally with its validation error. Cancel is a POST and is not affected.
+- Timestamps carry up to 7 fractional digits (`2026-09-19T11:43:10.4030292+03:30`) and mixed offsets;
+  parsers must accept both.
 - Bulk/P2P item validation happens in the API. Validate request-level fields locally, but send item
   values unchanged so valid siblings can still succeed.
 
@@ -82,8 +93,8 @@ over an ambiguous doc reading:
 ## Development
 
 Run `make lint`/`make fmt`/`make build`/`make test` before finishing any change. Prerequisites:
-`gofmt`/`go vet` ship with the Go toolchain; `golangci-lint` needs a one-time
-`brew install golangci-lint` (see README's Development section).
+`gofmt`/`go vet` ship with the Go toolchain; `make lint` runs a pinned `golangci-lint` via `go run`
+under `GOTOOLCHAIN=go1.27.0`, because that linter cannot read export data from Go 1.27.2+.
 
 Note: this repository's `.golangci.yml` is written in golangci-lint's v2 configuration schema
 (`version: "2"`), since that is the version available in this environment. It enables the same

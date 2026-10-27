@@ -317,3 +317,31 @@ func TestFixturesIntegrity(t *testing.T) {
 		}
 	}
 }
+
+// An empty key signs anything, so an unset secret must never verify.
+func TestVerifyRejectsEmptyKey(t *testing.T) {
+	body := []byte(`{"id":"x","type":"status","occurred_at":"2026-04-04T12:05:00+03:30","attempt":1,"version":"1","data":[]}`)
+	timestamp := nowTimestamp()
+	mac := hmac.New(sha256.New, nil)
+	mac.Write([]byte(timestamp + "."))
+	mac.Write(body)
+	signature := "v1=" + base64.StdEncoding.EncodeToString(mac.Sum(nil))
+
+	tests := []struct {
+		name string
+		call func() (WebhookEvent, error)
+	}{
+		{"empty string secret", func() (WebhookEvent, error) { return Verify(body, signature, timestamp, "") }},
+		{"nil key", func() (WebhookEvent, error) { return VerifyWithKey(body, signature, timestamp, nil) }},
+		{"empty key", func() (WebhookEvent, error) { return VerifyWithKey(body, signature, timestamp, []byte{}) }},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			event, err := tc.call()
+			var verr *adsefid.WebhookVerificationError
+			if !errors.As(err, &verr) || event != nil {
+				t.Fatalf("want a *WebhookVerificationError and no event, got %v / %v", event, err)
+			}
+		})
+	}
+}

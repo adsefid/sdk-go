@@ -62,9 +62,8 @@ func TestEnumsAreForwardCompatible(t *testing.T) {
 		if TemplateParameterTypeString != "string" || TemplateParameterTypeNumber != "number" {
 			t.Error("the documented wire values are lowercase")
 		}
-		// The service also emits an undocumented "url"; this SDK models only
-		// the documented set and drops the rest on read.
-		if got := TemplateParameterType("url").String(); got == "" {
+		// A type the service adds later is preserved as a plain value on read.
+		if got := TemplateParameterType("future_type").String(); got == "" {
 			t.Error("an unknown parameter type should still stringify")
 		}
 	})

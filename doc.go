@@ -56,5 +56,5 @@
 // per-item result types (their Status fields are a plain int, not a typed
 // enum) for two places where this SDK intentionally departs from a literal
 // reading of the published API documentation to match observed live-API
-// behavior. Both are also called out in AGENTS.md.
+// behavior.
 package adsefid

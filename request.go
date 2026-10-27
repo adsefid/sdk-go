@@ -13,22 +13,53 @@ import (
 	"strings"
 )
 
+const (
+	// MaxMessengerFileBytes is the largest file content the Messenger upload
+	// endpoint accepts: 15 MiB, inclusive. Multipart framing is not counted.
+	MaxMessengerFileBytes = 15 * 1024 * 1024
+
+	maxResponseBytes = 16 * 1024 * 1024
+
+	// maxRequestTargetLength is the longest path-and-query the SDK sends. The
+	// service sits behind a proxy that rejects request lines over 8 KiB with an
+	// HTML 414, so a GET with a very long ID list is refused locally with a
+	// *ValidationError instead.
+	maxRequestTargetLength = 8000
+)
+
 // buildIDsQuery builds the "?message_ids=...&local_ids=..." query string
 // shared by the get-status and similar lookup endpoints, CSV-joining each
 // slice and omitting empty ones entirely. It returns "" when both slices are
 // empty.
 func buildIDsQuery(messageIDs, localIDs []string) string {
-	values := url.Values{}
-	if csv := joinCSV(messageIDs); csv != "" {
-		values.Set("message_ids", csv)
+	parts := make([]string, 0, 2)
+	if csv := joinEscaped(messageIDs); csv != "" {
+		parts = append(parts, "message_ids="+csv)
 	}
-	if csv := joinCSV(localIDs); csv != "" {
-		values.Set("local_ids", csv)
+	if csv := joinEscaped(localIDs); csv != "" {
+		parts = append(parts, "local_ids="+csv)
 	}
-	if len(values) == 0 {
+	if len(parts) == 0 {
 		return ""
 	}
-	return "?" + values.Encode()
+	return "?" + strings.Join(parts, "&")
+}
+
+// joinEscaped query-escapes each value and joins them with a literal comma.
+// The service reads the comma as the list separator, and leaving it unescaped
+// keeps the URL about a third shorter than %2C would. Duplicates are dropped
+// because the service collapses them anyway.
+func joinEscaped(values []string) string {
+	seen := make(map[string]struct{}, len(values))
+	escaped := make([]string, 0, len(values))
+	for _, value := range values {
+		if _, dup := seen[value]; dup {
+			continue
+		}
+		seen[value] = struct{}{}
+		escaped = append(escaped, url.QueryEscape(value))
+	}
+	return strings.Join(escaped, ",")
 }
 
 func joinCSV(values []string) string {
@@ -72,8 +103,12 @@ func doPostMultipart[T any](ctx context.Context, c *Client, path, fileName, cont
 	if err != nil {
 		return zero, &TransportError{Message: "failed to build multipart request body", Err: err}
 	}
-	if _, err := io.Copy(part, r); err != nil {
+	written, err := io.Copy(part, io.LimitReader(r, MaxMessengerFileBytes+1))
+	if err != nil {
 		return zero, &TransportError{Message: "failed to read the file to upload", Err: err}
+	}
+	if written > MaxMessengerFileBytes {
+		return zero, &ValidationError{Field: "file", Message: "exceeds the maximum allowed size of 15 MiB"}
 	}
 	if err := writer.Close(); err != nil {
 		return zero, &TransportError{Message: "failed to finalize multipart request body", Err: err}
@@ -90,6 +125,14 @@ func escapeQuotes(s string) string {
 // never retries: exactly one HTTP request is sent per call.
 func doRequest[T any](ctx context.Context, c *Client, method, path, contentType string, body io.Reader) (T, error) {
 	var zero T
+
+	if method == http.MethodGet {
+		if length := len(c.basePath) + len(path); length > maxRequestTargetLength {
+			return zero, &ValidationError{
+				Message: fmt.Sprintf("the request URL is %d characters long, over the %d the service accepts; send fewer IDs per call", length, maxRequestTargetLength),
+			}
+		}
+	}
 
 	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
 	if err != nil {
@@ -111,9 +154,12 @@ func doRequest[T any](ctx context.Context, c *Client, method, path, contentType 
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
 	if err != nil {
 		return zero, &TransportError{Message: "failed to read the response body", Err: err}
+	}
+	if len(respBody) > maxResponseBytes {
+		return zero, &TransportError{Message: "the response body exceeds the maximum supported size"}
 	}
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {

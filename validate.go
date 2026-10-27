@@ -1,6 +1,7 @@
 package adsefid
 
 import (
+	"encoding/json"
 	"regexp"
 	"strings"
 )
@@ -117,4 +118,19 @@ func distinctCount(values []string) int {
 		seen[value] = struct{}{}
 	}
 	return len(seen)
+}
+
+// validateTemplateParameters rejects a number parameter with no JSON
+// representation (NaN or an infinity from NumberParam), which would otherwise
+// surface as a confusing encoding failure.
+func validateTemplateParameters(parameters map[string]TemplateParameterValue, field string) *ValidationError {
+	for name, value := range parameters {
+		if !value.isNumber {
+			continue
+		}
+		if !json.Valid([]byte(value.numberValue)) {
+			return &ValidationError{Field: field, Message: "parameter " + name + " must be a finite number"}
+		}
+	}
+	return nil
 }

@@ -8,7 +8,7 @@ import (
 )
 
 // LineSelector selects which line-accounting mode a send should use. See the
-// adsefid.com API documentation (doc v1.13.0, section 3.1).
+// adsefid.com API documentation (doc section 3.1).
 type LineSelector int
 
 const (
@@ -330,11 +330,8 @@ func (v TemplateState) String() string {
 // TemplateParameterType is the declared type of one template parameter, as
 // reported by GetTemplates. See doc section 3.6.
 //
-// The documented, supported public set is exactly {string, number}. The live
-// API has been observed to also emit a third, undocumented value for some
-// templates; this SDK intentionally does not model or expose it. If you need
-// to detect it, compare the raw wire value defensively rather than assuming
-// it is always one of the two constants below.
+// The documented public set is {string, number}. A type the service adds
+// later is not given a constant here, but it is preserved as a plain value.
 type TemplateParameterType string
 
 const (

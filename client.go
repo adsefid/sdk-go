@@ -24,6 +24,7 @@ type Client struct {
 
 	apiKey     string
 	baseURL    string
+	basePath   string
 	userAgent  string
 	httpClient *http.Client
 }
@@ -89,7 +90,8 @@ func NewClient(apiKey string, opts ...ClientOption) (*Client, error) {
 		opt(cfg)
 	}
 	cfg.baseURL = strings.TrimRight(cfg.baseURL, "/")
-	if parsed, err := url.Parse(cfg.baseURL); err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+	parsedBase, err := url.Parse(cfg.baseURL)
+	if err != nil || parsedBase.Host == "" || (parsedBase.Scheme != "http" && parsedBase.Scheme != "https") {
 		return nil, &ValidationError{Field: "baseURL", Message: "must be an absolute http(s) URL"}
 	}
 	if strings.TrimSpace(cfg.userAgent) == "" || strings.ContainsAny(cfg.userAgent, "\r\n") {
@@ -98,12 +100,13 @@ func NewClient(apiKey string, opts ...ClientOption) (*Client, error) {
 
 	httpClient := cfg.httpClient
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: cfg.timeout}
+		httpClient = &http.Client{Timeout: cfg.timeout, Transport: defaultTransport()}
 	}
 
 	c := &Client{
 		apiKey:     apiKey,
 		baseURL:    cfg.baseURL,
+		basePath:   parsedBase.Path,
 		userAgent:  cfg.userAgent,
 		httpClient: httpClient,
 	}
@@ -111,6 +114,19 @@ func NewClient(apiKey string, opts ...ClientOption) (*Client, error) {
 	c.Messenger = &MessengerService{client: c}
 	c.User = &UserService{client: c}
 	return c, nil
+}
+
+// defaultTransport clones http.DefaultTransport with a larger idle pool per
+// host. The stdlib default keeps only two idle connections per host, which
+// forces new TLS handshakes under concurrent load against a single API origin.
+func defaultTransport() http.RoundTripper {
+	base, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return http.DefaultTransport
+	}
+	transport := base.Clone()
+	transport.MaxIdleConnsPerHost = 100
+	return transport
 }
 
 func defaultUserAgent() string {

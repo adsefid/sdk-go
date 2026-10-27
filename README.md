@@ -1,20 +1,15 @@
-# adsefid.com SMS Web Service — Go SDK
+# adsefid.com SMS Web Service: Go SDK
 
 [![CI](https://github.com/adsefid/sdk-go/actions/workflows/ci.yml/badge.svg)](https://github.com/adsefid/sdk-go/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/adsefid/sdk-go.svg)](https://pkg.go.dev/github.com/adsefid/sdk-go)
 
-A Go client SDK for the [adsefid.com](https://adsefid.com) SMS Web Service REST API: send single,
-bulk, P2P, and templated SMS and Messenger messages; check delivery status; cancel eligible unrefunded
-messages; fetch inbound SMS; look up account info, lines, profiles, and templates; and verify
-inbound webhook deliveries.
+A Go client for the [adsefid.com](https://adsefid.com) SMS Web Service API. It sends SMS and
+Messenger messages (single, bulk, P2P and template), checks delivery status, cancels unsent
+messages, reads inbound SMS, looks up account data, and verifies signed webhooks.
 
-Equivalent SDKs for the same API exist for .NET, JavaScript, PHP, and Python. This SDK's public
-surface is structurally parallel to those, translated idiomatically to Go — see
-[AGENTS.md](AGENTS.md) for the specific, deliberate deviations.
-
-## Requirements
-
-Go 1.22 or later. Zero third-party dependencies — this module only uses the Go standard library.
+The SDK uses only the standard library and needs Go 1.22 or later. It is verified against API
+documentation **v1.14.0**. Sibling SDKs exist for .NET, JavaScript, PHP and Python with the same
+shape.
 
 ## Install
 
@@ -42,171 +37,67 @@ func main() {
 		log.Fatal(err)
 	}
 
+	selector := adsefid.LineSelectorBulkServiceSendBased
 	resp, err := client.SMS.SendSingle(context.Background(), &adsefid.SendSingleSmsRequest{
-		Receptor:   "09120000000",
-		LineNumber: "3000000000",
+		Receptor:   "989120000000",
+		LineNumber: "983000",
+		LineSelector: &selector,
 		Message:    "Hello from adsefid.com!",
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("sent message %s, status=%s\n", resp.MessageID, resp.Status)
+	fmt.Printf("sent %s, status=%s, cost=%s\n", resp.MessageID, resp.Status, resp.Cost)
 }
 ```
 
-See [`examples/quickstart`](examples/quickstart) for a fuller version with error triage, and
-[`examples/webhookserver`](examples/webhookserver) for a working webhook receiver.
+The SDK never reads environment variables. Pass the API key yourself. It goes out as the
+`X-API-KEY` header on every request.
 
-## Authentication
+**Line selector.** An account can own several lines with the same number, each with its own
+selector (see `client.User.GetLines`). When it does, `LineSelector` is required on every SMS send;
+without it the service answers `WebServiceResponseCodeLineNotFound`.
 
-Every request is authenticated with a single `X-API-KEY` header, set from the API key you pass to
-`NewClient`. Keep it out of source control — the examples read it from an environment variable:
-
-```sh
-export ADSEFID_API_KEY="your-api-key"
-```
-
-```go
-client, err := adsefid.NewClient(os.Getenv("ADSEFID_API_KEY"))
-```
-
-`NewClient` returns a `*adsefid.ValidationError` if the key is blank.
-
-## Configuration
-
-`NewClient` takes functional options:
+## Client options
 
 ```go
 client, err := adsefid.NewClient(
 	apiKey,
-	adsefid.WithBaseURL("https://api.adsefid.com"), // default; override for testing
-	adsefid.WithTimeout(15 * time.Second),          // only used when WithHTTPClient is not set
-	adsefid.WithUserAgent("my-service/1.0.0"),      // defaults to adsefid-go/<SDK_VERSION>
+	adsefid.WithBaseURL("https://api.adsefid.com"), // default
+	adsefid.WithTimeout(15*time.Second),            // ignored if WithHTTPClient is set
+	adsefid.WithUserAgent("my-service/1.0.0"),      // default: adsefid-go/<SDK_VERSION>
+	adsefid.WithHTTPClient(myHTTPClient),           // custom transport, proxy, logging
 )
 ```
 
-- **`WithBaseURL(string)`** — overrides the default API base URL (`https://api.adsefid.com`).
-- **`WithHTTPClient(*http.Client)`** — supplies your own `*http.Client`, e.g. to install a custom
-  `http.RoundTripper` for logging or a corporate proxy. Takes precedence over `WithTimeout` if
-  both are set.
-- **`WithTimeout(time.Duration)`** — sets the timeout of the default `*http.Client` this package
-  builds internally. Has no effect if `WithHTTPClient` is also supplied.
-- **`WithUserAgent(string)`** — replaces the default `adsefid-go/<SDK_VERSION>` User-Agent value.
+`NewClient` returns a `*ValidationError` for a blank key, a base URL that is not an absolute
+http(s) URL, or a bad user agent. The default `*http.Client` keeps up to 100 idle connections per
+host, so concurrent callers reuse TLS connections.
 
-Monetary response fields (`Cost`, `TotalCost`, and `CreditLeft`) use `float64` and may contain fractional values.
+Every method takes a `context.Context` first. Use it for cancellation and per-call deadlines.
 
-## Resource reference
+## Methods
 
-| Resource | SDK method | HTTP endpoint | Notes |
-|---|---|---|---|
-| `client.SMS` | `SendSingle(ctx, *SendSingleSmsRequest)` | `POST /v1/sms/single` | |
-| `client.SMS` | `SendBulk(ctx, *SendBulkSmsRequest)` | `POST /v1/sms/bulk` | Partial success is a normal typed return |
-| `client.SMS` | `SendP2P(ctx, *SendP2PSmsRequest)` | `POST /v1/sms/p2p` | Partial success is a normal typed return |
-| `client.SMS` | `SendTemplate(ctx, *SendTemplateSmsRequest)` | `POST /v1/sms/template` | |
-| `client.SMS` | `GetStatus(ctx, *GetSmsStatusRequest)` | `GET /v1/sms/status` | |
-| `client.SMS` | `Cancel(ctx, *CancelSmsRequest)` | `POST /v1/sms/cancel` | Awaiting approval, queued, or scheduled; no refund; max 2,000 distinct IDs combined |
-| `client.SMS` | `GetReceived(ctx, *GetReceivedSmsRequest)` | `GET /v1/sms/receive` | |
-| `client.Messenger` | `SendSingle(ctx, *SendSingleMessengerRequest)` | `POST /v1/messenger/single` | |
-| `client.Messenger` | `SendBulk(ctx, *SendBulkMessengerRequest)` | `POST /v1/messenger/bulk` | Partial success is a normal typed return |
-| `client.Messenger` | `SendP2P(ctx, *SendP2PMessengerRequest)` | `POST /v1/messenger/p2p` | Partial success is a normal typed return |
-| `client.Messenger` | `UploadFile(ctx, io.Reader, fileName, contentType string)` | `POST /v1/messenger/file` | Caller owns the reader |
-| `client.Messenger` | `Cancel(ctx, *CancelMessengerRequest)` | `POST /v1/messenger/cancel` | Awaiting approval, queued, or scheduled; no refund; max 2,000 distinct IDs combined |
-| `client.Messenger` | `SendTemplate(ctx, *SendTemplateMessengerRequest)` | `POST /v1/messenger/template` | |
-| `client.Messenger` | `GetStatus(ctx, *GetMessengerStatusRequest)` | `GET /v1/messenger/status` | |
-| `client.User` | `GetInfo(ctx)` | `GET /v1/user/info` | |
-| `client.User` | `GetLines(ctx)` | `GET /v1/user/lines` | |
-| `client.User` | `GetProfiles(ctx)` | `GET /v1/user/profiles` | |
-| `client.User` | `GetTemplates(ctx, *GetUserTemplatesRequest)` | `GET /v1/user/templates` | `nil` lists the first page in every state |
+| Service | Method | Endpoint |
+|---|---|---|
+| `client.SMS` | `SendSingle`, `SendBulk`, `SendP2P`, `SendTemplate` | `POST /v1/sms/{single,bulk,p2p,template}` |
+| `client.SMS` | `GetStatus`, `Cancel`, `GetReceived` | `GET /v1/sms/status`, `POST /v1/sms/cancel`, `GET /v1/sms/receive` |
+| `client.Messenger` | `SendSingle`, `SendBulk`, `SendP2P`, `SendTemplate` | `POST /v1/messenger/{single,bulk,p2p,template}` |
+| `client.Messenger` | `UploadFile(ctx, io.Reader, fileName, contentType)` | `POST /v1/messenger/file` |
+| `client.Messenger` | `GetStatus`, `Cancel` | `GET /v1/messenger/status`, `POST /v1/messenger/cancel` |
+| `client.User` | `GetInfo`, `GetLines`, `GetProfiles`, `GetTemplates` | `GET /v1/user/{info,lines,profiles,templates}` |
 
-Every method takes a `context.Context` as its first argument and returns `(T, error)` or
-`(*T, error)` — there are no panics for expected failure conditions.
-Bulk/P2P item values are sent unchanged so the API can accept or reject them independently; only
-request-level fields are prevalidated.
+Every method except `GetInfo`, `GetLines`, `GetProfiles` and `UploadFile` takes one
+`*XxxRequest` struct, including the GET lookups. `GetTemplates(ctx, nil)` lists the first page in
+every state. Cancel accepts messages that are awaiting approval, queued or scheduled, with no
+refund, and at most 2,000 distinct IDs across both lists. Status lookups are GET requests, so the URL caps them at about 200 IDs per call. The SDK raises a validation error past 8,000 URL characters instead of letting the gateway answer HTTP 414.
 
-## Error handling
+## Bulk and P2P: partial success is not an error
 
-This SDK never panics for expected failures. It defines four error types, all implementing
-`error`, and you distinguish them with `errors.As`:
-
-- **`*adsefid.ValidationError`** — a client-side pre-flight check failed (bad input shape, a
-  message too long, a malformed `local_id`, etc.). No network call was made.
-- **`*adsefid.APIError`** — the API returned a non-success envelope, or a non-2xx HTTP status.
-  Carries `Code adsefid.WebServiceResponseCode`, `Name string`, `HTTPStatusCode int`, and optional
-  typed `Details *adsefid.APIErrorDetails`.
-- **`*adsefid.RateLimitError`** — embeds `*adsefid.APIError` for the rate-limit-shaped failures
-  (`WebServiceResponseCode` 2035 `MessageLimitReached`, 2036 `RequestLimitReached`, or a bare HTTP
-  429). It unwraps to the embedded `*APIError`, so `errors.As` also matches that.
-  `adsefid.IsRateLimitError(err)` is a convenience wrapper around the same check.
-- **`*adsefid.TransportError`** — a network-level failure: connection error, timeout, or a
-  response body that could not be decoded. Wraps the underlying error (`Unwrap()`).
-
-A worked example, checking the more specific `*RateLimitError` before the `*APIError` it embeds:
-
-```go
-resp, err := client.SMS.SendSingle(ctx, req)
-if err != nil {
-	var valErr *adsefid.ValidationError
-	if errors.As(err, &valErr) {
-		log.Fatalf("bad request: %s", valErr)
-	}
-
-	var rlErr *adsefid.RateLimitError
-	if errors.As(err, &rlErr) {
-		log.Fatalf("rate limited (%s)", rlErr.Name)
-	}
-
-	var apiErr *adsefid.APIError
-	if errors.As(err, &apiErr) {
-		log.Fatalf("API error %s (code %d, HTTP %d)", apiErr.Name, int(apiErr.Code), apiErr.HTTPStatusCode)
-	}
-
-	var transportErr *adsefid.TransportError
-	if errors.As(err, &transportErr) {
-		log.Fatalf("transport error: %v", transportErr)
-	}
-
-	log.Fatalf("unexpected error: %v", err)
-}
-```
-
-`APIError.Details` contains optional `Errors map[string]APIFieldError` for field errors (and rejected
-cancel IDs), plus optional `Items []APIItemError` for indexed bulk/P2P errors. Named integer codes
-preserve unknown future values.
-
-### Rate limits
-
-Codes `2035`, `2036`, and bare HTTP `429` responses surface as `*adsefid.RateLimitError`.
-
-## Enums
-
-All documented enums are typed Go constants implementing `fmt.Stringer`. Unrecognized wire values
-degrade gracefully (e.g. `WebServiceResponseCode(9999)`) rather than failing to parse:
-
-- **`LineSelector`** (int, 0-5): `LineSelectorPromotionalSendBased`, `LineSelectorPromotionalDeliverBased`,
-  `LineSelectorBulkServiceSendBased`, `LineSelectorBulkServiceDeliverBased`,
-  `LineSelectorCustomerClubServiceSendBased`, `LineSelectorCustomerClubServiceDeliverBased`.
-- **`WebServiceMessageStatus`** (int, 1000-1999): the status of a single message — e.g.
-  `WebServiceMessageStatusDelivered`, `WebServiceMessageStatusBlacklisted`,
-  `WebServiceMessageStatusUnknown`. See `enums.go` for the full set of 18 values.
-- **`WebServiceResponseCode`** (int, 2000-2047): the API's error codes — e.g.
-  `WebServiceResponseCodeInvalidAPIKey`, `WebServiceResponseCodeNotEnoughCredit`,
-  `WebServiceResponseCodeMessageLimitReached`, `WebServiceResponseCodeInvalidMessageIDs`, and
-  `WebServiceResponseCodeFileTooLarge`. See `enums.go` for the full set of 48 values.
-- **`TemplateState`** (string): `TemplateStatePendingApproval`, `TemplateStateApproved`,
-  `TemplateStateRejected`.
-- **`TemplateParameterType`** (string): `TemplateParameterTypeString`, `TemplateParameterTypeNumber`.
-  The documented public set is exactly these two; the live API has been observed to also emit an
-  undocumented third value for some templates, which this SDK intentionally does not model (see
-  AGENTS.md).
-
-Bulk and P2P per-item results (`BulkSmsReceptorResult.Status`, `P2PSmsMessageResult.Status`,
-`BulkMessengerReceptorResult.Status`, `P2PMessengerReceptorResult.Status`) are a plain `int`, not a
-typed enum, because a failed item's `status` can carry either a `WebServiceMessageStatus` (1000+)
-or a `WebServiceResponseCode` (2000+). Each item's `MessageStatus()` and `ErrorCode()` methods split
-that value into the typed enum for its range (`ok` is false for the other range and for a code this
-SDK does not know yet), and `adsefid.MessageStatusOf`/`adsefid.ErrorCodeOf` do the same for any raw
-value:
+A bulk or P2P call returns HTTP 200 even when some items are rejected. Each item's `Status` holds
+either a message status (1000 to 1999) or an error code (2000 and up). `MessageStatus()` and
+`ErrorCode()` split it into the typed enum for its range:
 
 ```go
 for _, item := range resp.Receptors {
@@ -219,56 +110,34 @@ for _, item := range resp.Receptors {
 }
 ```
 
-Top-level statuses (single send, get-status, cancel) are always in the 1000-1999 range and use the
-typed `WebServiceMessageStatus`.
+Item values reach the API unchanged, so valid items still go out. If every item is rejected, the
+call fails with an `*APIError` whose `Details.Items` lists one entry per rejected index. Only
+request-level fields are checked locally.
 
-`TemplateParameterValue` models a template parameter's value, which the API accepts and returns as
-either a JSON string or a JSON number:
+## Template parameters
 
-```go
-params := map[string]adsefid.TemplateParameterValue{
-	"name":  adsefid.StringParam("Ali"),
-	"count": adsefid.IntParam(3),
-	"price": adsefid.NumberParam(19.99),
-}
-
-if s, ok := params["name"].StringValue(); ok {
-	fmt.Println(s)
-}
-```
-
-### Numbers, leading zeros and decimals
-
-A parameter the template declares as `number` may be sent **either** as a JSON number or as a JSON
-string. The service substitutes a numeric string verbatim, so a string is the only way to keep a
-value's exact digits:
+A parameter the template declares as `number` can be sent as a JSON number or a JSON string.
+The service substitutes a numeric string as written, so a string is the only way to keep exact
+digits:
 
 ```go
 params := map[string]adsefid.TemplateParameterValue{
-	"invoice": adsefid.StringParam("001234"), // renders as 001234, not 1234
-	"amount":  adsefid.StringParam("1.50"),   // renders as 1.50, not 1.5
-	"count":   adsefid.IntParam(2),           // an ordinary integer
-	"rate":    adsefid.NumberParam(19.99),    // a decimal, where float rounding is acceptable
+	"name":    adsefid.StringParam("Ali"),
+	"invoice": adsefid.StringParam("001234"), // renders 001234, not 1234
+	"amount":  adsefid.StringParam("1.50"),   // renders 1.50, not 1.5
+	"count":   adsefid.IntParam(2),
+	"rate":    adsefid.NumberParam(19.99), // a float64, so rounding is possible
 }
 ```
 
-Use `StringParam` whenever the rendered text must match the digits you supplied — invoice numbers,
-account numbers, zero-padded codes, and money amounts with a fixed number of decimal places.
-`NumberParam` takes a `float64` and therefore cannot represent every decimal exactly.
+`RawNumber()` returns a number's exact wire text (`"1.50"` keeps its trailing zero);
+`NumberValue()` converts to `float64`. `NumberParam` rejects NaN and infinities with a
+`*ValidationError`.
 
-On the way back, `RawNumber()` returns a number as its exact wire text, while `NumberValue()`
-converts to `float64`:
+Money fields (`Cost`, `TotalCost`, `CreditLeft`) are `json.Number`, so you keep the exact decimal
+the service sent. Call `.String()`, or `.Float64()` when rounding is fine.
 
-```go
-value := resp.Parameters["amount"]
-if raw, ok := value.RawNumber(); ok {
-	fmt.Println(raw) // "1.50" — the trailing zero survives
-}
-```
-
-See [`examples/templates`](examples/templates) for a runnable version.
-
-## File upload example
+## File upload
 
 ```go
 f, err := os.Open("banner.png")
@@ -290,151 +159,134 @@ _, err = client.Messenger.SendSingle(ctx, &adsefid.SendSingleMessengerRequest{
 })
 ```
 
-The service enforces its documented MIME allowlist and 15 MB limit. Oversized uploads return
-`WebServiceResponseCodeFileTooLarge` (2047, HTTP 413).
+File content is limited to 15 MiB inclusive (`adsefid.MaxMessengerFileBytes`). A larger reader
+fails with a `*ValidationError` before any request is sent. The service also enforces a MIME
+allowlist and answers `WebServiceResponseCodeFileTooLarge` (2047) for anything it still rejects
+as too large. The SDK reads your reader but does not close it.
+
+## Errors
+
+Every failure is a returned `error`. The SDK never panics for an expected failure. Tell the types
+apart with `errors.As`, checking `*RateLimitError` before the `*APIError` it embeds:
+
+| Type | Meaning |
+|---|---|
+| `*ValidationError` | A local check failed. No request was sent. |
+| `*APIError` | The API returned an error envelope, or a non-2xx status without one. Has `Code`, `Name`, `HTTPStatusCode` and optional typed `Details`. |
+| `*RateLimitError` | Embeds `*APIError`. Codes 2035 and 2036, or any HTTP 429. `adsefid.IsRateLimitError(err)` is a shortcut. |
+| `*TransportError` | Connection failure, timeout, or a response body that could not be decoded. Wraps the cause. |
+
+```go
+resp, err := client.SMS.SendSingle(ctx, req)
+if err != nil {
+	var rl *adsefid.RateLimitError
+	var api *adsefid.APIError
+	switch {
+	case errors.As(err, &rl):
+		log.Printf("rate limited (%s)", rl.Name)
+	case errors.As(err, &api):
+		log.Printf("API error %s (code %d, HTTP %d)", api.Name, int(api.Code), api.HTTPStatusCode)
+	default:
+		log.Printf("failed: %v", err)
+	}
+	return
+}
+_ = resp
+```
+
+A non-2xx response with no error envelope is an `*APIError` with code `-1` and name
+`UNKNOWN_ERROR`. A bare 429 is code 2036 with name `RATE_LIMITED`. The SDK sends each request
+once and never retries. Add backoff in your own `http.RoundTripper` if you need it.
+
+`APIError.Details.Errors` maps field names (or rejected cancel IDs) to `{Code, Name}`.
+`Details.Items` carries indexed bulk/P2P errors.
+
+## Enums and unknown values
+
+`LineSelector`, `WebServiceMessageStatus`, `WebServiceResponseCode`, `TemplateState` and
+`TemplateParameterType` are typed constants that implement `fmt.Stringer`. A value the service
+adds later is kept as that type's raw value (for example `WebServiceResponseCode(9999)`) instead
+of failing to parse. See `enums.go` for the full lists.
 
 ## Webhooks
 
-The `webhooks` subpackage verifies and parses inbound webhook deliveries. It has no dependency on
-`*adsefid.Client` — a webhook receiver is typically a separate process from whatever sends
-messages.
+The `webhooks` package verifies the signature, checks the timestamp, and parses the payload into
+a typed event. It does not depend on `*adsefid.Client`, so a receiver can be a separate process.
 
-Every webhook delivery carries the following headers. Use the exported constants so the wire names
-remain exact:
-
-- `webhooks.HeaderID` (`X-Atlas-Webhook-Id`) — the delivery's unique ID.
-- `webhooks.HeaderSignature` (`X-Atlas-Webhook-Signature`) — `"v1=" + base64(hmac_sha256("{timestamp}.{raw_body}", secret))`.
-- `webhooks.HeaderTimestamp` (`X-Atlas-Webhook-Timestamp`) — the Unix timestamp (seconds) the delivery was signed at.
-- `webhooks.HeaderEvent` (`X-Atlas-Webhook-Event`) — the event type (also present in the body as `"type"`).
-- `webhooks.HeaderAttempt` (`X-Atlas-Webhook-Attempt`) — the 1-based delivery attempt number (also present in the body).
-
-`webhooks.Verify` needs only the raw body plus the Signature and Timestamp headers — the event id,
-type, and attempt are also present in (and covered by the signature of) the JSON body itself.
-
-### The signing secret is Base64
-
-Your endpoint's signing secret is shown in the adsefid.com panel as the Base64 encoding of 32
-random bytes, and the service signs with **those raw bytes** — not with the text of the Base64
-string. `webhooks.Verify` takes the secret exactly as the panel shows it and decodes it for you; a
-secret that is not valid Base64 is rejected with a `*adsefid.WebhookVerificationError`.
-
-If you already hold the decoded key, use `webhooks.VerifyWithKey(rawBody, signature, timestamp,
-key, opts...)` instead and skip the decoding step.
-
-You configure, per webhook endpoint, which event types it receives (in your adsefid.com panel) —
-an endpoint subscribed only to `webhooks.EventTypeReceive` will never see a `*StatusEvent` arrive,
-so don't assume every deployment gets all three; handle whichever ones you've subscribed to.
+The signing secret appears in the panel Base64-encoded, and the service signs with the decoded
+bytes. `webhooks.Verify` takes the secret exactly as the panel shows it. If you store the decoded
+key, call `webhooks.VerifyWithKey`. An empty secret or key is always rejected.
 
 ```go
-package main
+http.HandleFunc("/webhooks/adsefid", func(w http.ResponseWriter, r *http.Request) {
+	rawBody, err := io.ReadAll(r.Body) // verify the exact bytes, before any JSON parsing
+	if err != nil {
+		http.Error(w, "bad body", http.StatusBadRequest)
+		return
+	}
 
-import (
-	"io"
-	"log"
-	"net/http"
-	"os"
+	event, err := webhooks.Verify(
+		rawBody,
+		r.Header.Get(webhooks.HeaderSignature),
+		r.Header.Get(webhooks.HeaderTimestamp),
+		os.Getenv("ADSEFID_WEBHOOK_SECRET"),
+	)
+	if err != nil {
+		http.Error(w, "invalid webhook", http.StatusUnauthorized) // do not say why
+		return
+	}
 
-	"github.com/adsefid/sdk-go/webhooks"
-)
-
-func main() {
-	secret := os.Getenv("ADSEFID_WEBHOOK_SECRET")
-
-	http.HandleFunc("/webhooks/adsefid", func(w http.ResponseWriter, r *http.Request) {
-		rawBody, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "failed to read body", http.StatusBadRequest)
-			return
+	switch e := event.(type) {
+	case *webhooks.ReceiveEvent:
+		for _, m := range e.Data {
+			log.Printf("SMS on %s from %s: %q", m.LineNumber, m.Sender, m.Message)
 		}
-		defer r.Body.Close()
-
-		signature := r.Header.Get(webhooks.HeaderSignature)
-		timestamp := r.Header.Get(webhooks.HeaderTimestamp)
-
-		event, err := webhooks.Verify(rawBody, signature, timestamp, secret)
-		if err != nil {
-			http.Error(w, "invalid webhook", http.StatusUnauthorized)
-			return
+	case *webhooks.StatusEvent:
+		for _, s := range e.Data {
+			log.Printf("SMS %s -> %s", s.ID, s.StatusDelivery)
 		}
-
-		switch e := event.(type) {
-		case *webhooks.ReceiveEvent:
-			for _, item := range e.Data {
-				log.Printf("received SMS on %s from %s: %q", item.LineNumber, item.Sender, item.Message)
-			}
-		case *webhooks.StatusEvent:
-			for _, item := range e.Data {
-				log.Printf("SMS %s -> %s", item.ID, item.StatusDelivery)
-			}
-		case *webhooks.MessengerStatusEvent:
-			for _, item := range e.Data {
-				log.Printf("Messenger %s -> %s", item.ID, item.StatusDelivery)
-			}
+	case *webhooks.MessengerStatusEvent:
+		for _, s := range e.Data {
+			log.Printf("Messenger %s -> %s", s.ID, s.StatusDelivery)
 		}
-
-		w.WriteHeader(http.StatusOK)
-	})
-
-	log.Fatal(http.ListenAndServe(":8080", nil))
-}
+	}
+	w.WriteHeader(http.StatusOK)
+})
 ```
 
-See [`examples/webhookserver`](examples/webhookserver) for the complete, runnable version.
+Header and event-type constants (`webhooks.HeaderSignature`, `webhooks.EventTypeReceive`, and so
+on) hold the exact wire names. `webhooks.WithMaxAge(d)` changes the default five-minute freshness
+window. Each endpoint only receives the event types you subscribed it to in the panel. Deliveries
+can repeat, so make your handler idempotent and return a 2xx quickly.
 
-`webhooks.Verify` accepts a `webhooks.WithMaxAge(time.Duration)` option to override the default
-5-minute staleness window, and returns a `*adsefid.WebhookVerificationError` for any verification
-or parsing failure (bad signature, stale timestamp, malformed or unrecognized payload).
+## Using this SDK with coding agents
 
-## Development
+[AGENTS.md](AGENTS.md) holds the repository rules. The points below prevent most wrong guesses:
 
-```sh
-make deps    # go mod download
-make fmt     # gofmt + goimports
-make lint    # go vet + golangci-lint
-make build   # go build ./...
-make test    # go test ./...
-```
+- Pass the API key and webhook secret explicitly. The SDK reads no environment variables.
+- Treat a bulk or P2P response as data, not an error. Check each item's status.
+- Send exact numeric text (`"001234"`, `"1.50"`) as `StringParam`.
+- Hand `webhooks.Verify` the raw request body, never re-serialized JSON.
+- There are no retries and no automatic batching. Split large requests yourself.
+- Check errors with `errors.As`, not string matching. Branch on `Code`, which is stable.
 
-`gofmt`, `go vet` and `go test` ship with the Go toolchain. `golangci-lint` needs a one-time
-install:
+## Examples and contributing
 
-```sh
-brew install golangci-lint
-```
-
-The test suite uses only the standard library (`testing` plus `net/http/httptest`), so `go.mod`
-stays dependency-free. Golden fixtures live in `testdata/` and are byte-identical to the same tree
-in the sibling SDK repositories; `TestFixturesIntegrity` verifies them against `CHECKSUMS.txt`.
-
-### Examples
-
-Each directory under `examples/` is a standalone `package main`. Run one with `go run`:
+Runnable programs are in [`examples/`](examples): `account`, `quickstart`, `bulkandp2p`,
+`templates`, `statusandcancel`, `messenger` and `webhookserver`. `account` sends nothing, so try it
+first.
 
 ```sh
 export ADSEFID_API_KEY=...
-export ADSEFID_LINE_NUMBER=983000XXX
-
-go run ./examples/account          # account info, lines, profiles, templates; client configuration
-go run ./examples/quickstart       # send one SMS, with full error triage
-go run ./examples/bulkandp2p       # bulk + P2P sends, and reading a partial success
-go run ./examples/templates        # list templates and send one, incl. exact numeric values
-go run ./examples/statusandcancel  # delivery status, cancelling, inbound messages
-go run ./examples/messenger        # upload an attachment and send it via a messenger profile
-go run ./examples/webhookserver    # verify and dispatch inbound webhooks
+export ADSEFID_LINE_NUMBER=983000
+go run ./examples/quickstart
 ```
 
-`examples/account` sends nothing, so it is the safest one to try first.
+To work on the SDK: `make lint`, `make test` and `make build`. `make lint` runs a pinned
+golangci-lint, so nothing needs installing. See [AGENTS.md](AGENTS.md).
 
-## Versioning
+## Versioning and license
 
-This SDK follows Semantic Versioning independently of the API documentation.
-
-- SDK version: **`0.6.0`** (repository tag `v0.6.0`)
-- Verified API documentation: **`v1.14.0`**
-
-SDK releases use `v<SDK_VERSION>` tags. The two version numbers move independently. A future major
-version `v2` must also change the module path to `github.com/adsefid/sdk-go/v2`.
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+Semantic Versioning, independent of the API documentation. Current SDK version: **0.6.0**
+(tag `v0.6.0`). See [CHANGELOG.md](CHANGELOG.md). A future v2 changes the module path to
+`github.com/adsefid/sdk-go/v2`. MIT licensed, see [LICENSE](LICENSE).
