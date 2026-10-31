@@ -9,7 +9,7 @@ Equivalent SDKs exist for the same API in sibling repositories (`sdk-dotnet`, `s
 
 The API surface (endpoints, field names, types, validation rules, enums, example payloads,
 webhook behavior) is defined by the published adsefid.com SMS Web Service API documentation. This
-SDK is verified against doc version v1.14.0. Re-read the relevant documentation before changing
+SDK is verified against doc version v1.15.0. Re-read the relevant documentation before changing
 any endpoint, request/response model, or enum. The SDK follows independent Semantic Versioning
 from repository tags; never copy the API-document version into a tag. Record both versions in the
 README. A future v2 must add `/v2` to the module and import paths.
@@ -22,11 +22,11 @@ over an ambiguous doc reading:
   literal string "{timestamp}.{raw_body}", and the raw digest bytes are Base64-encoded directly —
   there is no intermediate hex-encoding step, even though a literal reading of some spec
   pseudo-code can suggest one. See `webhooks/verify.go`.
-- The documented `TemplateParameterType` set is {string, number}, and only those two get constants.
+- The public named `TemplateParameterType` set is {string, number}, and only those two get constants.
   Any other value is preserved as a plain string in `UserTemplate.Parameters` rather than dropped; add a
   constant only for a value the documentation lists. See `enums.go`.
 - `error.details` uses the shared typed `APIErrorDetails` shape: optional `Errors` maps field names
-  (or rejected cancel IDs) to `APIFieldError`, and optional `Items` carries indexed `APIItemError`
+  to `APIFieldError`, and optional `Items` carries indexed `APIItemError`
   entries. Named integer codes preserve unknown future values.
 - Monetary response fields (`Cost`, `TotalCost`, `CreditLeft`) are `json.Number` so the exact wire
   decimal survives. Do not change them to `float64`.
@@ -34,11 +34,11 @@ over an ambiguous doc reading:
   the default `*http.Client` is built on a cloned `http.DefaultTransport` with a larger idle pool.
 - An empty webhook signing key is rejected: an empty HMAC key signs anything.
 - `line_selector` is required when the account has two or more lines with the same number. Without
-  it the service answers `LINE_NOT_FOUND` (2002), even for a number the account owns.
-- GET requests are capped at 8,000 characters of path and query. The service's proxy answers an HTML
-  HTTP 414 above 8 KiB, so the documented 2,000-ID status lookup cannot be sent as one GET (about 200
-  IDs fit). The SDK joins IDs with literal commas, drops duplicates, and refuses an oversized GET
-  locally with its validation error. Cancel is a POST and is not affected.
+  it the service answers `INVALID_LINE_SELECTOR` (2017) on `line_selector`. A selector that matches
+  no line returns `LINE_NOT_FOUND` (2002).
+- Status lookups use `QUERY` with JSON arrays, with at most 2,000 distinct message/local IDs
+  combined. Unmatched cancellation IDs stay in `failed_to_cancel` with status 2046 or 2029;
+  a missing local ID match has a null message ID. Preserve unknown per-item codes.
 - Timestamps carry up to 7 fractional digits (`2026-09-19T11:43:10.4030292+03:30`) and mixed offsets;
   parsers must accept both.
 - Bulk/P2P item validation happens in the API. Validate request-level fields locally, but send item
@@ -77,6 +77,8 @@ over an ambiguous doc reading:
 
 ## Hard rules
 
+- All enums must preserve unknown wire values as raw integers/strings without raising errors for
+  unnamed values.
 - Every change ships with tests. Suites live beside the code they cover, in `package adsefid`
   (and `package webhooks`), stdlib `testing` only — no testify, no anything: `go.mod` stays
   dependency-free. Prefer one table-driven test over many near-identical functions. A new endpoint

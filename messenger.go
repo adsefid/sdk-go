@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net/http"
 	"time"
 )
 
@@ -184,8 +185,8 @@ type UploadMessengerFileResponse struct {
 // least one of MessageIDs or LocalIDs must be non-empty, and their combined
 // distinct count must not exceed 2000.
 type GetMessengerStatusRequest struct {
-	MessageIDs []string
-	LocalIDs   []string
+	MessageIDs []string `json:"message_ids,omitempty"`
+	LocalIDs   []string `json:"local_ids,omitempty"`
 }
 
 // MessengerStatusItem is one entry of GetMessengerStatusResponse.Receptors.
@@ -213,9 +214,19 @@ type CancelMessengerRequest struct {
 // CancelledMessengerItem is one entry of CancelMessengerResponse.CancelledMessages
 // or CancelMessengerResponse.FailedToCancel.
 type CancelledMessengerItem struct {
-	MessageID string                  `json:"message_id"`
-	LocalID   *string                 `json:"local_id"`
-	Status    WebServiceMessageStatus `json:"status"`
+	MessageID *string `json:"message_id"`
+	LocalID   *string `json:"local_id"`
+	Status    int     `json:"status"`
+}
+
+// MessageStatus returns the named message status, if known.
+func (r CancelledMessengerItem) MessageStatus() (WebServiceMessageStatus, bool) {
+	return MessageStatusOf(r.Status)
+}
+
+// ErrorCode returns the named error for an unmatched identifier, if known.
+func (r CancelledMessengerItem) ErrorCode() (WebServiceResponseCode, bool) {
+	return ErrorCodeOf(r.Status)
 }
 
 // CancelMessengerResponse is the response body for MessengerService.Cancel.
@@ -245,7 +256,7 @@ func (m *MessengerService) SendSingle(ctx context.Context, req *SendSingleMessen
 		return nil, err
 	}
 
-	return doPostJSON[*SendSingleMessengerResponse](ctx, m.client, "/v1/messenger/single", req)
+	return doJSON[*SendSingleMessengerResponse](ctx, m.client, http.MethodPost, "/v1/messenger/single", req)
 }
 
 // SendBulk sends the same message to many receptors in one call. Item errors
@@ -266,7 +277,7 @@ func (m *MessengerService) SendBulk(ctx context.Context, req *SendBulkMessengerR
 	if err := requireNonEmpty(req.Profile, "Profile"); err != nil {
 		return nil, err
 	}
-	return doPostJSON[*SendBulkMessengerResponse](ctx, m.client, "/v1/messenger/bulk", req)
+	return doJSON[*SendBulkMessengerResponse](ctx, m.client, http.MethodPost, "/v1/messenger/bulk", req)
 }
 
 // SendP2P sends distinct, per-receptor messages in one call. Item errors are
@@ -281,7 +292,7 @@ func (m *MessengerService) SendP2P(ctx context.Context, req *SendP2PMessengerReq
 	if err := requireNonEmpty(req.Profile, "Profile"); err != nil {
 		return nil, err
 	}
-	return doPostJSON[*SendP2PMessengerResponse](ctx, m.client, "/v1/messenger/p2p", req)
+	return doJSON[*SendP2PMessengerResponse](ctx, m.client, http.MethodPost, "/v1/messenger/p2p", req)
 }
 
 // UploadFile uploads a file (image, video, or document, per the API's
@@ -314,7 +325,7 @@ func (m *MessengerService) Cancel(ctx context.Context, req *CancelMessengerReque
 		return nil, err
 	}
 
-	return doPostJSON[*CancelMessengerResponse](ctx, m.client, "/v1/messenger/cancel", req)
+	return doJSON[*CancelMessengerResponse](ctx, m.client, http.MethodPost, "/v1/messenger/cancel", req)
 }
 
 // SendTemplate sends a pre-approved message template, filled in with
@@ -339,7 +350,7 @@ func (m *MessengerService) SendTemplate(ctx context.Context, req *SendTemplateMe
 		return nil, err
 	}
 
-	return doPostJSON[*SendTemplateMessengerResponse](ctx, m.client, "/v1/messenger/template", req)
+	return doJSON[*SendTemplateMessengerResponse](ctx, m.client, http.MethodPost, "/v1/messenger/template", req)
 }
 
 // GetStatus looks up the delivery status of previously sent messages by
@@ -352,6 +363,6 @@ func (m *MessengerService) GetStatus(ctx context.Context, req *GetMessengerStatu
 		return nil, err
 	}
 
-	path := "/v1/messenger/status" + buildIDsQuery(req.MessageIDs, req.LocalIDs)
-	return doGet[*GetMessengerStatusResponse](ctx, m.client, path)
+	body := &GetMessengerStatusRequest{MessageIDs: uniqueIDs(req.MessageIDs), LocalIDs: uniqueIDs(req.LocalIDs)}
+	return doJSON[*GetMessengerStatusResponse](ctx, m.client, "QUERY", "/v1/messenger/status", body)
 }

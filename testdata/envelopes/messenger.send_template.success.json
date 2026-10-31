@@ -9,7 +9,7 @@
     "send_time": "2026-04-04T12:50:00+03:30",
     "expiry_date": "2026-04-04T13:00:00+03:30",
     "cost": 80,
-    "receptor": "98912****567",
+    "receptor": "+98912****567",
     "message": "فاکتور INV-1043 به مبلغ 250000 آماده است",
     "profile": "b72ea7f4-44b4-4f5e-91ef-91816ae5f88a",
     "messenger": "rubika",

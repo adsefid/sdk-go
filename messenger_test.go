@@ -2,6 +2,7 @@ package adsefid
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -108,9 +109,14 @@ func TestMessengerRequestBuilding(t *testing.T) {
 				_, err := c.Messenger.GetStatus(context.Background(), &GetMessengerStatusRequest{MessageIDs: []string{"m1"}, LocalIDs: []string{"l1"}})
 				return err
 			},
-			wantMethod: http.MethodGet,
+			wantMethod: "QUERY",
 			wantPath:   "/v1/messenger/status",
-			wantQuery:  url.Values{"message_ids": {"m1"}, "local_ids": {"l1"}},
+			assertBody: func(t *testing.T, body map[string]any) {
+				got, _ := json.Marshal(body)
+				if string(got) != `{"local_ids":["l1"],"message_ids":["m1"]}` {
+					t.Fatalf("unexpected status body: %s", got)
+				}
+			},
 		},
 	}
 

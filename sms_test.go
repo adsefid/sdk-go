@@ -2,10 +2,9 @@ package adsefid
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"net/http"
 	"net/url"
-	"strings"
 	"testing"
 	"time"
 )
@@ -156,9 +155,14 @@ func TestSMSRequestBuilding(t *testing.T) {
 				_, err := c.SMS.GetStatus(context.Background(), &GetSmsStatusRequest{MessageIDs: []string{"m1", "m2"}, LocalIDs: []string{"l1"}})
 				return err
 			},
-			wantMethod: http.MethodGet,
+			wantMethod: "QUERY",
 			wantPath:   "/v1/sms/status",
-			wantQuery:  url.Values{"message_ids": {"m1,m2"}, "local_ids": {"l1"}},
+			assertBody: func(t *testing.T, body map[string]any) {
+				got, _ := json.Marshal(body)
+				if string(got) != `{"local_ids":["l1"],"message_ids":["m1","m2"]}` {
+					t.Fatalf("unexpected status body: %s", got)
+				}
+			},
 		},
 		{
 			name:    "cancel",
@@ -464,16 +468,13 @@ func TestGetStatusCombinedIDLimit(t *testing.T) {
 		atLimit[i] = "id-" + itoa(i)
 	}
 
-	// 2000 distinct IDs pass the count check but cannot fit in a GET URL, so
-	// the call is refused for its length, not its count.
 	client, requests := newFixtureClient(t, "envelopes/sms.get_status.success.json")
 	_, err := client.SMS.GetStatus(context.Background(), &GetSmsStatusRequest{MessageIDs: atLimit})
-	var verr *ValidationError
-	if !errors.As(err, &verr) || !strings.Contains(verr.Message, "characters long") {
-		t.Fatalf("2000 ids should fail the URL length check, got %v", err)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if len(*requests) != 0 {
-		t.Fatalf("the call must not reach the network")
+	if onlyRequest(t, requests).Method != "QUERY" {
+		t.Fatal("status must use QUERY")
 	}
 
 	overLimit := append(append([]string{}, atLimit...), "one-too-many")

@@ -27,6 +27,18 @@ const (
 	maxRequestTargetLength = 8000
 )
 
+func uniqueIDs(values []string) []string {
+	seen := make(map[string]bool, len(values))
+	ids := make([]string, 0, len(values))
+	for _, value := range values {
+		if !seen[value] {
+			seen[value] = true
+			ids = append(ids, value)
+		}
+	}
+	return ids
+}
+
 // buildIDsQuery builds the "?message_ids=...&local_ids=..." query string
 // shared by the get-status and similar lookup endpoints, CSV-joining each
 // slice and omitting empty ones entirely. It returns "" when both slices are
@@ -72,15 +84,15 @@ func doGet[T any](ctx context.Context, c *Client, path string) (T, error) {
 	return doRequest[T](ctx, c, http.MethodGet, path, "", nil)
 }
 
-// doPostJSON performs a single-attempt POST request with a JSON-encoded body
+// doJSON performs a single-attempt request with a JSON-encoded body
 // and decodes the envelope into T.
-func doPostJSON[T any](ctx context.Context, c *Client, path string, body any) (T, error) {
+func doJSON[T any](ctx context.Context, c *Client, method, path string, body any) (T, error) {
 	var zero T
 	encoded, err := json.Marshal(body)
 	if err != nil {
 		return zero, &TransportError{Message: "failed to encode request body", Err: err}
 	}
-	return doRequest[T](ctx, c, http.MethodPost, path, "application/json", bytes.NewReader(encoded))
+	return doRequest[T](ctx, c, method, path, "application/json", bytes.NewReader(encoded))
 }
 
 // doPostMultipart performs a single-attempt multipart/form-data POST request

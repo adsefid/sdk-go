@@ -1,0 +1,34 @@
+{
+  "status": "success",
+  "data": {
+    "cancelled_messages": [
+      {
+        "message_id": "0195ff8c-55aa-7e74-a337-c2fd4f6e85c5",
+        "local_id": "order-10001",
+        "status": 1004
+      }
+    ],
+    "failed_to_cancel": [
+      {
+        "message_id": "0195ff8c-55aa-7e74-a337-c2fd4f6e85c5",
+        "local_id": "already-sent",
+        "status": 1001
+      },
+      {
+        "message_id": "0195ff9f-f9cf-7d62-a49e-2ca4db9a90f2",
+        "local_id": null,
+        "status": 2046
+      },
+      {
+        "message_id": null,
+        "local_id": "missing-local",
+        "status": 2029
+      },
+      {
+        "message_id": null,
+        "local_id": "future-error",
+        "status": 2999
+      }
+    ]
+  }
+}

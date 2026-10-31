@@ -81,8 +81,8 @@ func TestGetTemplates(t *testing.T) {
 		if item.Parameters["amount"] != TemplateParameterTypeNumber {
 			t.Errorf("amount type = %v", item.Parameters["amount"])
 		}
-		if item.Description != nil {
-			t.Errorf("description should be nil, got %v", *item.Description)
+		if item.Description == nil || *item.Description != "" {
+			t.Errorf("description should be empty, got %v", item.Description)
 		}
 		if item.CreatedAt.IsZero() || item.UpdatedAt.IsZero() {
 			t.Error("timestamps should have parsed")
@@ -99,6 +99,9 @@ func TestGetTemplates(t *testing.T) {
 		params := got.Items[0].Parameters
 		if params["link"] != TemplateParameterType("future_type") {
 			t.Errorf("the unknown parameter type should be preserved, got %v", params)
+		}
+		if got.Items[0].Description != nil {
+			t.Error("a nullable description must remain nil")
 		}
 		if len(params) != 3 {
 			t.Errorf("expected three parameters, got %v", params)

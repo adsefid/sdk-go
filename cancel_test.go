@@ -67,3 +67,66 @@ func TestCancellationCountsDistinctIDsAndPreservesBody(t *testing.T) {
 		}
 	}
 }
+
+func TestCancellationPreservesNullableIDsAndItemErrors(t *testing.T) {
+	for _, area := range []string{"sms", "messenger"} {
+		t.Run(area, func(t *testing.T) {
+			client, requests := newFixtureClient(t, "envelopes/cancel.partial_success.json")
+			var result any
+			var err error
+			if area == "sms" {
+				var response *CancelSmsResponse
+				response, err = client.SMS.Cancel(context.Background(), &CancelSmsRequest{LocalIDs: []string{"missing-local"}})
+				if err != nil {
+					t.Fatal(err)
+				}
+				code, ok := response.FailedToCancel[2].ErrorCode()
+				if !ok || code != WebServiceResponseCodeInvalidLocalIDs {
+					t.Fatal("missing typed local-ID error")
+				}
+				if status, ok := response.CancelledMessages[0].MessageStatus(); !ok || status != WebServiceMessageStatusCanceled {
+					t.Fatal("missing cancelled status")
+				}
+				if _, ok := response.FailedToCancel[3].ErrorCode(); ok {
+					t.Fatal("unknown error must remain raw")
+				}
+				result = response
+			} else {
+				var response *CancelMessengerResponse
+				response, err = client.Messenger.Cancel(context.Background(), &CancelMessengerRequest{LocalIDs: []string{"missing-local"}})
+				if err != nil {
+					t.Fatal(err)
+				}
+				code, ok := response.FailedToCancel[2].ErrorCode()
+				if !ok || code != WebServiceResponseCodeInvalidLocalIDs {
+					t.Fatal("missing typed local-ID error")
+				}
+				if status, ok := response.CancelledMessages[0].MessageStatus(); !ok || status != WebServiceMessageStatusCanceled {
+					t.Fatal("missing cancelled status")
+				}
+				if _, ok := response.FailedToCancel[3].ErrorCode(); ok {
+					t.Fatal("unknown error must remain raw")
+				}
+				result = response
+			}
+			encoded, err := json.Marshal(result)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got any
+			if err := json.Unmarshal(encoded, &got); err != nil {
+				t.Fatal(err)
+			}
+			var fixture struct {
+				Data any `json:"data"`
+			}
+			if err := json.Unmarshal(mustFixture(t, "envelopes/cancel.partial_success.json"), &fixture); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got, fixture.Data) {
+				t.Fatal("cancel outcomes must round-trip, including null IDs and unknown codes")
+			}
+			onlyRequest(t, requests)
+		})
+	}
+}
