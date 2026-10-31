@@ -3,12 +3,14 @@ package adsefid
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -184,41 +186,47 @@ func TestErrorMappingWithoutEnvelope(t *testing.T) {
 	}
 }
 
-func TestStatusLookupURLLength(t *testing.T) {
-	ids := func(n int) []string {
-		out := make([]string, n)
-		for i := range out {
-			out[i] = fmt.Sprintf("0195ff8c-55aa-7e74-a337-%012d", i)
-		}
-		return out
-	}
-	tests := []struct {
-		name    string
-		count   int
-		wantErr bool
-	}{
-		{"fits the 8000 character budget", 210, false},
-		{"over the budget", 230, true},
-		{"documented maximum", 2000, true},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			client, requests := newTestClient(t, jsonHandler(200, []byte(`{"status":"success","data":{"receptors":[]}}`)))
-			_, err := client.SMS.GetStatus(context.Background(), &GetSmsStatusRequest{MessageIDs: ids(tc.count)})
-			var verr *ValidationError
-			if tc.wantErr {
-				if !errors.As(err, &verr) || len(*requests) != 0 {
-					t.Fatalf("want a *ValidationError and no request, got %v (%d requests)", err, len(*requests))
+func TestStatusLookupUsesQueryWithCombinedDistinctLimit(t *testing.T) {
+	for _, area := range []string{"sms", "messenger"} {
+		for _, count := range []int{0, 2000, 2001} {
+			t.Run(fmt.Sprintf("%s/%d", area, count), func(t *testing.T) {
+				client, requests := newTestClient(t, jsonHandler(200, []byte(`{"status":"success","data":{"receptors":[]}}`)))
+				var messages, locals []string
+				for i := 0; i < count/2; i++ {
+					messages = append(messages, fmt.Sprintf("0195ff8c-55aa-7e74-a337-%012d", i))
 				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("GetStatus: %v", err)
-			}
-			if raw := onlyRequest(t, requests).RawQuery; strings.Contains(raw, "%2C") || !strings.Contains(raw, ",") {
-				t.Errorf("ids must be separated by literal commas, got %.80s", raw)
-			}
-		})
+				for i := 0; i < count-count/2; i++ {
+					locals = append(locals, fmt.Sprintf("local-%d", i))
+				}
+				repeated := append(append([]string{}, messages...), messages...)
+				var err error
+				if area == "sms" {
+					_, err = client.SMS.GetStatus(context.Background(), &GetSmsStatusRequest{MessageIDs: repeated, LocalIDs: locals})
+				} else {
+					_, err = client.Messenger.GetStatus(context.Background(), &GetMessengerStatusRequest{MessageIDs: repeated, LocalIDs: locals})
+				}
+				if count == 0 || count > 2000 {
+					var validation *ValidationError
+					if !errors.As(err, &validation) || len(*requests) != 0 {
+						t.Fatalf("expected local validation, got %v", err)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				request := onlyRequest(t, requests)
+				var body GetSmsStatusRequest
+				if err := json.Unmarshal(request.Body, &body); err != nil {
+					t.Fatal(err)
+				}
+				if request.Method != "QUERY" || request.RawQuery != "" || request.Path != "/v1/"+area+"/status" ||
+					!reflect.DeepEqual(body.MessageIDs, messages) || !reflect.DeepEqual(body.LocalIDs, locals) ||
+					request.Header.Get("Content-Type") != "application/json" {
+					t.Fatal("status must send deduplicated arrays in one QUERY JSON body")
+				}
+			})
+		}
 	}
 }
 

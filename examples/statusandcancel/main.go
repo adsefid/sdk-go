@@ -89,7 +89,13 @@ func main() {
 	fmt.Printf("\ncancelled %d, failed to cancel %d\n",
 		len(cancelled.CancelledMessages), len(cancelled.FailedToCancel))
 	for _, item := range cancelled.FailedToCancel {
-		fmt.Printf("  %s could not be cancelled: %s\n", item.MessageID, item.Status)
+		id := item.LocalID
+		if item.MessageID != nil {
+			id = item.MessageID
+		}
+		if id != nil {
+			fmt.Printf("  %s could not be cancelled: %d\n", *id, item.Status)
+		}
 	}
 
 	// Inbound messages. count is capped at 499; since filters by arrival time.

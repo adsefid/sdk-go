@@ -330,7 +330,7 @@ func (v TemplateState) String() string {
 // TemplateParameterType is the declared type of one template parameter, as
 // reported by GetTemplates. See doc section 3.6.
 //
-// The documented public set is {string, number}. A type the service adds
+// The public named types are {string, number}. A type the service adds
 // later is not given a constant here, but it is preserved as a plain value.
 type TemplateParameterType string
 

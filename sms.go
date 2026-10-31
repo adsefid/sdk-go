@@ -3,6 +3,7 @@ package adsefid
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -183,8 +184,8 @@ type SendTemplateSmsResponse struct {
 // MessageIDs or LocalIDs must be non-empty, and their combined distinct count
 // must not exceed 2000.
 type GetSmsStatusRequest struct {
-	MessageIDs []string
-	LocalIDs   []string
+	MessageIDs []string `json:"message_ids,omitempty"`
+	LocalIDs   []string `json:"local_ids,omitempty"`
 }
 
 // SmsStatusItem is one entry of GetSmsStatusResponse.Receptors.
@@ -212,9 +213,19 @@ type CancelSmsRequest struct {
 // CancelledSmsItem is one entry of CancelSmsResponse.CancelledMessages or
 // CancelSmsResponse.FailedToCancel.
 type CancelledSmsItem struct {
-	MessageID string                  `json:"message_id"`
-	LocalID   *string                 `json:"local_id"`
-	Status    WebServiceMessageStatus `json:"status"`
+	MessageID *string `json:"message_id"`
+	LocalID   *string `json:"local_id"`
+	Status    int     `json:"status"`
+}
+
+// MessageStatus returns the named message status, if known.
+func (r CancelledSmsItem) MessageStatus() (WebServiceMessageStatus, bool) {
+	return MessageStatusOf(r.Status)
+}
+
+// ErrorCode returns the named error for an unmatched identifier, if known.
+func (r CancelledSmsItem) ErrorCode() (WebServiceResponseCode, bool) {
+	return ErrorCodeOf(r.Status)
 }
 
 // CancelSmsResponse is the response body for SMSService.Cancel.
@@ -266,7 +277,7 @@ func (s *SMSService) SendSingle(ctx context.Context, req *SendSingleSmsRequest) 
 		return nil, err
 	}
 
-	return doPostJSON[*SendSingleSmsResponse](ctx, s.client, "/v1/sms/single", req)
+	return doJSON[*SendSingleSmsResponse](ctx, s.client, http.MethodPost, "/v1/sms/single", req)
 }
 
 // SendBulk sends the same message to many receptors in one call. Item errors
@@ -287,7 +298,7 @@ func (s *SMSService) SendBulk(ctx context.Context, req *SendBulkSmsRequest) (*Se
 	if err := requireNonEmpty(req.LineNumber, "LineNumber"); err != nil {
 		return nil, err
 	}
-	return doPostJSON[*SendBulkSmsResponse](ctx, s.client, "/v1/sms/bulk", req)
+	return doJSON[*SendBulkSmsResponse](ctx, s.client, http.MethodPost, "/v1/sms/bulk", req)
 }
 
 // SendP2P sends distinct, per-receptor messages in one call. Item errors are
@@ -302,7 +313,7 @@ func (s *SMSService) SendP2P(ctx context.Context, req *SendP2PSmsRequest) (*Send
 	if err := requireNonEmpty(req.LineNumber, "LineNumber"); err != nil {
 		return nil, err
 	}
-	return doPostJSON[*SendP2PSmsResponse](ctx, s.client, "/v1/sms/p2p", req)
+	return doJSON[*SendP2PSmsResponse](ctx, s.client, http.MethodPost, "/v1/sms/p2p", req)
 }
 
 // SendTemplate sends a pre-approved message template, filled in with
@@ -327,7 +338,7 @@ func (s *SMSService) SendTemplate(ctx context.Context, req *SendTemplateSmsReque
 		return nil, err
 	}
 
-	return doPostJSON[*SendTemplateSmsResponse](ctx, s.client, "/v1/sms/template", req)
+	return doJSON[*SendTemplateSmsResponse](ctx, s.client, http.MethodPost, "/v1/sms/template", req)
 }
 
 // GetStatus looks up the delivery status of previously sent messages by
@@ -340,8 +351,8 @@ func (s *SMSService) GetStatus(ctx context.Context, req *GetSmsStatusRequest) (*
 		return nil, err
 	}
 
-	path := "/v1/sms/status" + buildIDsQuery(req.MessageIDs, req.LocalIDs)
-	return doGet[*GetSmsStatusResponse](ctx, s.client, path)
+	body := &GetSmsStatusRequest{MessageIDs: uniqueIDs(req.MessageIDs), LocalIDs: uniqueIDs(req.LocalIDs)}
+	return doJSON[*GetSmsStatusResponse](ctx, s.client, "QUERY", "/v1/sms/status", body)
 }
 
 // Cancel cancels eligible messages by message ID or local ID.
@@ -357,7 +368,7 @@ func (s *SMSService) Cancel(ctx context.Context, req *CancelSmsRequest) (*Cancel
 		return nil, err
 	}
 
-	return doPostJSON[*CancelSmsResponse](ctx, s.client, "/v1/sms/cancel", req)
+	return doJSON[*CancelSmsResponse](ctx, s.client, http.MethodPost, "/v1/sms/cancel", req)
 }
 
 // GetReceived fetches inbound SMS messages received on req.LineNumber.

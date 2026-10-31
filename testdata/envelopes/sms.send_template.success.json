@@ -11,7 +11,7 @@
     "expiry_date": "2026-04-04T12:00:00+03:30",
     "line_selector": 2,
     "cost": 120,
-    "receptor": "98912****567",
+    "receptor": "+98912****567",
     "message": "کد ورود شما: ۴۵۹۱۲۲ - اعتبار: ۲ دقیقه",
     "segment_count": 1,
     "parameters": {
