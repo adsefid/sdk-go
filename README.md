@@ -289,6 +289,6 @@ golangci-lint, so nothing needs installing. See [AGENTS.md](AGENTS.md).
 
 ## Versioning and license
 
-Semantic Versioning, independent of the API documentation. Current SDK version: **1.0.0**
-(tag `v1.0.0`). See [CHANGELOG.md](CHANGELOG.md). A future v2 changes the module path to
+Semantic Versioning, independent of the API documentation. Current SDK version: **1.1.0**
+(tag `v1.1.0`). See [CHANGELOG.md](CHANGELOG.md). A future v2 changes the module path to
 `github.com/adsefid/sdk-go/v2`. MIT licensed, see [LICENSE](LICENSE).
